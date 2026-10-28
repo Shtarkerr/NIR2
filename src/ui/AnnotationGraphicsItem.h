@@ -4,8 +4,7 @@
 
 class Annotation;
 
-// Графическое представление объекта разметки на сцене.
-// Не владеет объектом: рисование делегируется Annotation::paint().
+// Объект разметки на сцене. Сам объект не хранит, рисует через Annotation::paint().
 class AnnotationGraphicsItem : public QGraphicsItem
 {
 public:
@@ -25,7 +24,7 @@ public:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                QWidget *widget = nullptr) override;
 
-    // Масштаб вида нужен, чтобы подписи и маркеры имели постоянный экранный размер.
+    // Масштаб нужен, чтобы подписи и маркеры не меняли размер на экране.
     static void setViewScale(qreal scale);
     static qreal viewScale() { return s_viewScale; }
 

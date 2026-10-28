@@ -47,8 +47,8 @@ void ContourTool::mouseRelease(const QPointF &, QMouseEvent *event)
     if (!contour() || event->button() != Qt::LeftButton || !dragging_)
         return;
     dragging_ = false;
-    // Если мышь двигали с зажатой кнопкой — контур нарисован от руки и готов.
-    // Иначе это был первый щелчок многоугольника.
+    // Если мышь двигали с зажатой кнопкой, контур нарисован от руки и готов.
+    // Если нет, это был первый щелчок в режиме многоугольника.
     if (dragged_)
         finish();
 }
@@ -106,7 +106,7 @@ void ContourTool::finish()
         discardDraft();
         return;
     }
-    // Две вершины — это отрезок, а не замкнутая область.
+    // Из двух вершин получается просто отрезок, его не замыкаем.
     contour()->setClosed(count >= 3);
     commitDraft();
 }

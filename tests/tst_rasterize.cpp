@@ -69,7 +69,7 @@ private slots:
     {
         const QVector<QPoint> vertices{{0, 0}, {10, 0}, {10, 6}, {0, 6}};
         const QVector<QPoint> pixels = Raster::polyline(vertices, true);
-        // Периметр прямоугольника 10×6 по пикселям: 2 * (10 + 6).
+        // Периметр прямоугольника 10 на 6 в пикселях: 2 * (10 + 6).
         QCOMPARE(pixels.size(), 32);
         QVERIFY(isConnected(pixels));
         const QPoint d = pixels.last() - pixels.first();

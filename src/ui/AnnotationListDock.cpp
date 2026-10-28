@@ -46,7 +46,7 @@ AnnotationListDock::AnnotationListDock(AnnotationDocument *document, QUndoStack 
     connect(document_, &AnnotationDocument::annotationAdded, this, &AnnotationListDock::rebuild);
     connect(document_, &AnnotationDocument::annotationChanged, this, &AnnotationListDock::rebuild);
     connect(document_, &AnnotationDocument::documentReset, this, &AnnotationListDock::rebuild);
-    // annotationRemoved приходит до удаления объекта из документа — откладываем перестройку.
+    // annotationRemoved приходит до удаления объекта, поэтому перестраиваем список позже.
     connect(document_, &AnnotationDocument::annotationRemoved, this,
             &AnnotationListDock::rebuild, Qt::QueuedConnection);
 

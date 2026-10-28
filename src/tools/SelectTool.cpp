@@ -89,7 +89,7 @@ void SelectTool::cancel()
 
 int SelectTool::annotationAt(const QPointF &pos) const
 {
-    // Допуск — 6 экранных пикселей при любом масштабе.
+    // Допуск 6 пикселей на экране при любом масштабе.
     const qreal tolerance = 6.0 / context_.canvas->viewScale();
     const auto &annotations = context_.document->annotations();
     // Последние добавленные объекты рисуются поверх, поэтому ищем с конца.

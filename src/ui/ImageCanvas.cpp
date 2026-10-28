@@ -27,7 +27,7 @@ ImageCanvas::ImageCanvas(QWidget *parent)
       pixmapItem_(new QGraphicsPixmapItem)
 {
     pixmapItem_->setZValue(-1);
-    // Без сглаживания при увеличении видны отдельные пиксели — это удобно для разметки.
+    // Без сглаживания при увеличении видно отдельные пиксели, так удобнее размечать.
     pixmapItem_->setTransformationMode(Qt::FastTransformation);
     scene_->addItem(pixmapItem_);
 
@@ -156,8 +156,8 @@ void ImageCanvas::applyZoom(qreal factor)
 void ImageCanvas::viewScaleChanged()
 {
     AnnotationGraphicsItem::setViewScale(viewScale());
-    // Размер подписей и маркеров зависит от масштаба — пересчитываем границы всех элементов,
-    // включая черновик текущего инструмента.
+    // Размер подписей и маркеров зависит от масштаба, поэтому пересчитываем
+    // границы всех элементов, в том числе черновика инструмента.
     for (QGraphicsItem *item : scene_->items()) {
         if (auto *annotationItem = qgraphicsitem_cast<AnnotationGraphicsItem *>(item))
             annotationItem->refresh();

@@ -13,7 +13,7 @@ void EllipseAnnotation::setFromRect(const QRectF &rect)
 
 QString EllipseAnnotation::describe() const
 {
-    return QStringLiteral("центр (%1, %2), r = %3×%4")
+    return QStringLiteral("центр (%1, %2), полуоси %3 и %4")
         .arg(formatNumber(center_.x()), formatNumber(center_.y()),
              formatNumber(rx_), formatNumber(ry_));
 }

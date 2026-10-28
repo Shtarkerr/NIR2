@@ -4,7 +4,7 @@
 
 #include <QPoint>
 
-// Отметка отдельного пикселя изображения.
+// Отмеченная точка (один пиксель).
 class PointAnnotation : public Annotation
 {
 public:

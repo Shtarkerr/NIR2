@@ -5,7 +5,7 @@
 
 QString RectAnnotation::describe() const
 {
-    return QStringLiteral("(%1, %2) %3×%4")
+    return QStringLiteral("(%1, %2) %3x%4")
         .arg(formatNumber(rect_.x()), formatNumber(rect_.y()),
              formatNumber(rect_.width()), formatNumber(rect_.height()));
 }

@@ -97,9 +97,9 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-    // Инструменты уничтожаются раньше дочерних виджетов, а холст ещё получает события
-    // (например, потерю фокуса). Документ удаляется раньше холста, элементы которого
-    // ссылаются на его объекты. Поэтому отвязываем всё заранее.
+    // Инструменты удаляются раньше дочерних виджетов, а холст при закрытии ещё
+    // получает события (потерю фокуса). Документ тоже удаляется раньше холста,
+    // хотя элементы холста ссылаются на его объекты. Поэтому отвязываем их заранее.
     canvas_->setTool(nullptr);
     canvas_->setDocument(nullptr);
     undoStack_->disconnect(this);
@@ -270,7 +270,7 @@ bool MainWindow::loadImage(const QString &path, QImage &image)
     image = reader.read();
     if (image.isNull()) {
         QMessageBox::warning(this, tr("Ошибка"),
-                             tr("Не удалось открыть изображение «%1»:\n%2")
+                             tr("Не удалось открыть изображение %1:\n%2")
                                  .arg(QFileInfo(path).fileName(), reader.errorString()));
         return false;
     }
@@ -283,7 +283,7 @@ bool MainWindow::openImageFile(const QString &path)
     if (!loadImage(path, image))
         return false;
 
-    // Набор меток сохраняется при переходе к следующему изображению серии.
+    // Метки оставляем, чтобы при переходе к следующей картинке не вводить их заново.
     const QStringList labels = document_->labels();
     canvas_->setImage(image);
     document_->reset(QFileInfo(path).absoluteFilePath(), image.size());
@@ -304,14 +304,14 @@ bool MainWindow::openAnnotationFile(const QString &path)
     QString error;
     if (!JsonSerializer::load(loaded, path, &error)) {
         QMessageBox::warning(this, tr("Ошибка"),
-                             tr("Не удалось загрузить разметку «%1»:\n%2").arg(QFileInfo(path).fileName(), error));
+                             tr("Не удалось загрузить разметку %1:\n%2").arg(QFileInfo(path).fileName(), error));
         return false;
     }
 
     QString imagePath = loaded.imagePath();
     if (imagePath.isEmpty() || !QFileInfo::exists(imagePath)) {
         QMessageBox::information(this, tr("Изображение не найдено"),
-                                 tr("Изображение «%1» не найдено. Укажите его расположение.")
+                                 tr("Изображение %1 не найдено. Укажите, где оно лежит.")
                                      .arg(QFileInfo(imagePath).fileName()));
         imagePath = QFileDialog::getOpenFileName(this, tr("Изображение для разметки"),
                                                  QFileInfo(path).absolutePath(), imageFilter());
@@ -324,7 +324,7 @@ bool MainWindow::openAnnotationFile(const QString &path)
         return false;
     if (loaded.imageSize().isValid() && loaded.imageSize() != image.size()) {
         QMessageBox::warning(this, tr("Внимание"),
-                             tr("Размер изображения (%1×%2) не совпадает с указанным в разметке (%3×%4).")
+                             tr("Размер изображения (%1x%2) не совпадает с указанным в разметке (%3x%4).")
                                  .arg(image.width()).arg(image.height())
                                  .arg(loaded.imageSize().width()).arg(loaded.imageSize().height()));
     }
@@ -440,10 +440,10 @@ void MainWindow::updateTitle()
 {
     const QString name = canvas_->hasImage() ? QFileInfo(document_->imagePath()).fileName()
                                              : tr("нет изображения");
-    setWindowTitle(tr("%1[*] — Разметка изображений").arg(name));
+    setWindowTitle(tr("%1[*] - Разметка изображений").arg(name));
     setWindowModified(!undoStack_->isClean());
     sizeLabel_->setText(canvas_->hasImage()
-                            ? tr("%1×%2").arg(canvas_->imageSize().width()).arg(canvas_->imageSize().height())
+                            ? tr("%1x%2").arg(canvas_->imageSize().width()).arg(canvas_->imageSize().height())
                             : QString());
 }
 
@@ -516,12 +516,12 @@ void MainWindow::showShortcuts()
 {
     QMessageBox::information(this, tr("Управление"), tr(
         "<table cellspacing='4'>"
-        "<tr><td><b>V</b></td><td>выбор и перемещение объектов (стрелки — сдвиг на 1 px, Shift — на 10 px)</td></tr>"
+        "<tr><td><b>V</b></td><td>выбор и перемещение объектов, стрелки двигают на 1 px, с Shift на 10 px</td></tr>"
         "<tr><td><b>P</b></td><td>отметка точки</td></tr>"
-        "<tr><td><b>R</b></td><td>прямоугольник (Shift — квадрат)</td></tr>"
-        "<tr><td><b>E</b></td><td>эллипс (Shift — круг)</td></tr>"
+        "<tr><td><b>R</b></td><td>прямоугольник, с Shift квадрат</td></tr>"
+        "<tr><td><b>E</b></td><td>эллипс, с Shift круг</td></tr>"
         "<tr><td><b>C</b></td><td>контур: обвести с зажатой кнопкой или ставить вершины щелчками; "
-        "двойной щелчок или Enter — завершить, Backspace — убрать вершину, Esc — отменить</td></tr>"
+        "двойной щелчок или Enter завершают, Backspace убирает вершину, Esc отменяет</td></tr>"
         "<tr><td><b>F</b></td><td>заливка прямоугольников и эллипсов</td></tr>"
         "<tr><td><b>Del</b></td><td>удалить выбранный объект</td></tr>"
         "<tr><td><b>Колесо</b></td><td>масштаб</td></tr>"

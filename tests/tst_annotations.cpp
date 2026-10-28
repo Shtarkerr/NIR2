@@ -73,7 +73,7 @@ private slots:
     {
         ContourAnnotation contour({{0, 0}, {10, 0}, {10, 10}}, true);
         QVERIFY(contour.hitTest(QPointF(5.5, 0.5), 1));
-        // Замыкающая сторона (10,10)→(0,0).
+        // Замыкающая сторона от (10,10) к (0,0).
         QVERIFY(contour.hitTest(QPointF(5.5, 5.5), 1));
         QVERIFY(!contour.hitTest(QPointF(8, 3), 1));
         QCOMPARE(contour.boundingRect(), QRectF(0, 0, 11, 11));

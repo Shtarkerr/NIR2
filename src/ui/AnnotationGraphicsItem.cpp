@@ -10,7 +10,7 @@ qreal AnnotationGraphicsItem::s_viewScale = 1.0;
 
 namespace {
 
-constexpr qreal MarkerMargin = 8;   // экранные пиксели вокруг фигуры (маркеры точек, рамка выделения)
+constexpr qreal MarkerMargin = 8;   // запас вокруг фигуры в экранных пикселях
 constexpr qreal LabelPadding = 3;
 
 QFont labelFont()
@@ -107,7 +107,7 @@ void AnnotationGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphics
     painter->setBrush(background);
     painter->drawRect(box);
     painter->setFont(labelFont());
-    // Цвет текста выбирается по воспринимаемой яркости фона (коэффициенты ITU-R BT.601).
+    // Чёрный или белый текст в зависимости от яркости фона.
     const qreal luma = 0.299 * background.redF() + 0.587 * background.greenF() + 0.114 * background.blueF();
     painter->setPen(luma > 0.5 ? Qt::black : Qt::white);
     painter->drawText(box, Qt::AlignCenter, annotation_->label());

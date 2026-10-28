@@ -15,7 +15,7 @@ public:
 
     const QVector<QPoint> &vertices() const { return vertices_; }
     int vertexCount() const { return vertices_.size(); }
-    // Добавляет вершину; повтор последней вершины игнорируется (возвращает false).
+    // Если вершина совпадает с последней, она не добавляется и вернётся false.
     bool addVertex(const QPoint &vertex);
     void removeLastVertex();
 

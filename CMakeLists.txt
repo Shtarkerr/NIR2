@@ -16,10 +16,12 @@ find_package(Qt5 5.12 REQUIRED COMPONENTS Core Gui Widgets)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
+elseif(MSVC)
+    # Исходники в UTF-8, иначе MSVC испортит кириллицу в строках.
+    add_compile_options(/utf-8 /W4)
 endif()
 
-# Ядро: модель разметки и ввод-вывод. Не зависит от Qt Widgets,
-# поэтому тесты собираются и запускаются без графического интерфейса.
+# Модель и работа с файлами отдельно от виджетов, чтобы тесты шли без GUI.
 add_library(annotator_core STATIC
     src/model/Annotation.h            src/model/Annotation.cpp
     src/model/FillableAnnotation.h

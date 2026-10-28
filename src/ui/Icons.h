@@ -3,7 +3,7 @@
 #include <QColor>
 #include <QIcon>
 
-// Иконки рисуются программно, чтобы не зависеть от файлов ресурсов и SVG-плагина.
+// Иконки рисуются в коде, чтобы не возиться с файлами ресурсов.
 namespace Icons {
 
 enum class Glyph { Select, Point, Rect, Ellipse, Contour, Fill };

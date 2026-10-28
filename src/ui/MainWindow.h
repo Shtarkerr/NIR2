@@ -25,7 +25,7 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 
-    // Открывает изображение или файл разметки (.json) — по расширению.
+    // Открывает картинку или разметку (.json), смотрит по расширению.
     bool openPath(const QString &path);
 
 protected:

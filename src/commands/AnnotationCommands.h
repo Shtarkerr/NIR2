@@ -8,7 +8,7 @@
 
 class AnnotationDocument;
 
-// Команды изменения документа (паттерн «Команда») для отмены и повтора действий.
+// Команды изменения документа для отмены и повтора действий.
 
 class AddAnnotationCommand : public QUndoCommand
 {
