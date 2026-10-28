@@ -1,0 +1,9 @@
+build*/
+*.user
+*.autosave
+.cache/
+.vscode/
+compile_commands.json
+
+# Список тем от преподавателя
+СписокТем-*.txt

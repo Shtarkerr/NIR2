@@ -1,0 +1,88 @@
+{
+    "annotations": [
+        {
+            "color": "#ff0000",
+            "filled": false,
+            "h": 182,
+            "id": 1,
+            "label": "прямоугольник",
+            "type": "rect",
+            "w": 242,
+            "x": 59,
+            "y": 69
+        },
+        {
+            "color": "#0000ff",
+            "cx": 560,
+            "cy": 185,
+            "filled": false,
+            "id": 2,
+            "label": "эллипс",
+            "rx": 141,
+            "ry": 96,
+            "type": "ellipse"
+        },
+        {
+            "closed": true,
+            "color": "#ffff00",
+            "id": 3,
+            "label": "треугольник",
+            "type": "contour",
+            "vertices": [
+                [120, 520],
+                [250, 330],
+                [380, 520]
+            ]
+        },
+        {
+            "closed": true,
+            "color": "#00ffff",
+            "id": 4,
+            "label": "пятиугольник",
+            "type": "contour",
+            "vertices": [
+                [480, 380],
+                [620, 340],
+                [740, 430],
+                [690, 560],
+                [520, 540]
+            ]
+        },
+        {
+            "color": "#00ff00",
+            "id": 5,
+            "label": "точка",
+            "type": "point",
+            "x": 150,
+            "y": 160
+        },
+        {
+            "color": "#00ff00",
+            "id": 6,
+            "label": "точка",
+            "type": "point",
+            "x": 560,
+            "y": 185
+        },
+        {
+            "color": "#00ff00",
+            "id": 7,
+            "label": "точка",
+            "type": "point",
+            "x": 600,
+            "y": 460
+        }
+    ],
+    "format": "image-annotator",
+    "height": 600,
+    "image": "shapes.png",
+    "labels": [
+        "прямоугольник",
+        "эллипс",
+        "треугольник",
+        "пятиугольник",
+        "точка"
+    ],
+    "version": 1,
+    "width": 800
+}
