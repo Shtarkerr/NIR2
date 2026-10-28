@@ -48,6 +48,8 @@ add_executable(image_annotator
     src/tools/ContourTool.h           src/tools/ContourTool.cpp
     src/ui/Icons.h                    src/ui/Icons.cpp
     src/ui/AnnotationGraphicsItem.h   src/ui/AnnotationGraphicsItem.cpp
+    src/ui/BrushCursorItem.h          src/ui/BrushCursorItem.cpp
+    src/ui/NewCanvasDialog.h          src/ui/NewCanvasDialog.cpp
     src/ui/ImageCanvas.h              src/ui/ImageCanvas.cpp
     src/ui/AnnotationListDock.h       src/ui/AnnotationListDock.cpp
     src/ui/MainWindow.h               src/ui/MainWindow.cpp

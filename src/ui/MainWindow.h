@@ -14,6 +14,7 @@ class QAction;
 class QActionGroup;
 class QComboBox;
 class QLabel;
+class QSpinBox;
 class QToolButton;
 class QUndoStack;
 
@@ -30,10 +31,12 @@ public:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+    void changeEvent(QEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
 
 private slots:
+    void newCanvas();
     void openImage();
     void openAnnotations();
     bool saveAnnotations();
@@ -52,11 +55,16 @@ private:
 
     bool openImageFile(const QString &path);
     bool openAnnotationFile(const QString &path);
+    bool openImageForAnnotations(const QString &annotationPath, const AnnotationDocument &loaded);
+    void startDocument(const QImage &image, const QString &imagePath, const QColor &canvasColor);
     bool loadImage(const QString &path, QImage &image);
     bool maybeSave();
     void setColor(const QColor &color);
+    void setBrushSize(int size);
+    void changeBrushSize(int direction);
     void activateTool(int index);
     void updateLabelChoices();
+    void updateIcons();
     void updateTitle();
     void updateActions();
     QString defaultOutputPath(const QString &suffix) const;
@@ -79,6 +87,7 @@ private:
     QAction *fillAction_ = nullptr;
     QToolButton *colorButton_ = nullptr;
     QComboBox *labelCombo_ = nullptr;
+    QSpinBox *brushSpin_ = nullptr;
 
     QLabel *cursorLabel_ = nullptr;
     QLabel *zoomLabel_ = nullptr;

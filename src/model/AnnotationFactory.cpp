@@ -5,12 +5,6 @@
 #include "model/PointAnnotation.h"
 #include "model/RectAnnotation.h"
 
-QStringList AnnotationFactory::typeNames()
-{
-    return {QStringLiteral("point"), QStringLiteral("rect"),
-            QStringLiteral("ellipse"), QStringLiteral("contour")};
-}
-
 std::unique_ptr<Annotation> AnnotationFactory::create(const QString &typeName)
 {
     if (typeName == QLatin1String("point"))

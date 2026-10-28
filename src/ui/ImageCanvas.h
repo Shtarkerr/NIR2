@@ -29,9 +29,12 @@ public:
 
     qreal viewScale() const;
     AnnotationGraphicsItem *itemFor(int id) const;
-    int selectedId() const { return selectedId_; }
+    const QList<int> &selectedIds() const { return selectedIds_; }
+    bool isSelected(int id) const { return selectedIds_.contains(id); }
 
 public slots:
+    void setSelectedIds(const QList<int> &ids);
+    // Выделить один объект (0 - снять выделение).
     void setSelectedId(int id);
     void ensureAnnotationVisible(int id);
     void zoomIn();
@@ -42,7 +45,7 @@ public slots:
 signals:
     void cursorPixelChanged(const QPoint &pixel, bool insideImage);
     void zoomChanged(qreal scale);
-    void selectedIdChanged(int id);
+    void selectionChanged(const QList<int> &ids);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -53,6 +56,7 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     void focusOutEvent(QFocusEvent *event) override;
+    void leaveEvent(QEvent *event) override;
 
 private:
     void addItem(int id);
@@ -68,8 +72,11 @@ private:
     AnnotationDocument *document_ = nullptr;
     Tool *tool_ = nullptr;
     QHash<int, AnnotationGraphicsItem *> items_;
-    int selectedId_ = 0;
+    QList<int> selectedIds_;
 
+    // Курсор над картинкой и зажата ли кнопка мыши: от этого зависит вид курсора.
+    bool pointerInImage_ = false;
+    bool buttonsHeld_ = false;
     bool spaceHeld_ = false;
     bool panning_ = false;
     QPoint panLast_;

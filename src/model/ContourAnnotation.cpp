@@ -52,24 +52,28 @@ QVector<QPoint> ContourAnnotation::rasterize() const
 
 QString ContourAnnotation::describe() const
 {
-    return QStringLiteral("%1 вершин, %2").arg(vertices_.size())
-        .arg(closed_ ? QStringLiteral("замкнутый") : QStringLiteral("открытый"));
+    return QStringLiteral("%1 вершин, %2, кисть %3 px").arg(vertices_.size())
+        .arg(closed_ ? QStringLiteral("замкнутый") : QStringLiteral("открытый"))
+        .arg(width_);
 }
 
 QRectF ContourAnnotation::boundingRect() const
 {
     if (vertices_.isEmpty())
         return QRectF();
-    // QPolygon::boundingRect() включает граничные пиксели целиком.
-    return QRectF(QPolygon(vertices_).boundingRect());
+    // QPolygon::boundingRect() включает граничные пиксели целиком,
+    // толстая линия выходит за них ещё на половину толщины.
+    const qreal extra = std::max(0.0, width_ / 2.0 - 0.5);
+    return QRectF(QPolygon(vertices_).boundingRect()).adjusted(-extra, -extra, extra, extra);
 }
 
 bool ContourAnnotation::hitTest(const QPointF &pos, qreal tolerance) const
 {
     if (vertices_.isEmpty())
         return false;
+    tolerance += width_ / 2.0;
     if (vertices_.size() == 1)
-        return QLineF(pixelCenter(vertices_.first()), pos).length() <= tolerance + 0.5;
+        return QLineF(pixelCenter(vertices_.first()), pos).length() <= tolerance;
 
     const int segments = closed_ ? vertices_.size() : vertices_.size() - 1;
     for (int i = 0; i < segments; ++i) {
@@ -93,14 +97,23 @@ void ContourAnnotation::paint(QPainter &painter, qreal scale) const
     if (vertices_.isEmpty())
         return;
 
-    painter.setPen(outlinePen());
-    painter.setBrush(Qt::NoBrush);
-
     if (vertices_.size() == 1) {
-        const qreal r = std::max(2.0 / scale, 0.5);
+        const qreal r = std::max(width_ / 2.0, 2.0 / scale);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(color());
         painter.drawEllipse(pixelCenter(vertices_.first()), r, r);
         return;
     }
+
+    // Тонкую линию рисуем постоянной экранной толщины, иначе при уменьшении она пропадает.
+    QPen pen = outlinePen();
+    pen.setCapStyle(Qt::RoundCap);
+    if (width_ * scale > 2) {
+        pen.setCosmetic(false);
+        pen.setWidthF(width_);
+    }
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
 
     QPolygonF polygon;
     polygon.reserve(vertices_.size());
@@ -124,6 +137,7 @@ void ContourAnnotation::writeJsonGeometry(QJsonObject &obj) const
     for (const QPoint &v : vertices_)
         points.append(QJsonArray{v.x(), v.y()});
     obj["closed"] = closed_;
+    obj["width"] = width_;
     obj["vertices"] = points;
 }
 
@@ -145,6 +159,7 @@ bool ContourAnnotation::readJsonGeometry(const QJsonObject &obj)
 
     vertices_ = vertices;
     closed_ = obj.value("closed").toBool(true);
+    setWidth(obj.value("width").toInt(1));
     return true;
 }
 
@@ -152,6 +167,7 @@ void ContourAnnotation::writeTxtGeometry(QTextStream &out) const
 {
     const QVector<QPoint> pixels = rasterize();
     out << " closed=" << (closed_ ? 1 : 0)
+        << " width=" << width_
         << " vertices=" << vertices_.size()
         << " pixels=" << pixels.size();
     writePoints(out, "V", vertices_);

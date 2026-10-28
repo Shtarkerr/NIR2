@@ -3,11 +3,13 @@
 #include "model/AnnotationDocument.h"
 #include "tools/Tool.h"
 #include "ui/AnnotationGraphicsItem.h"
+#include "ui/BrushCursorItem.h"
 
 #include <QGraphicsPixmapItem>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QScrollBar>
+#include <QSet>
 #include <QWheelEvent>
 
 #include <algorithm>
@@ -35,7 +37,8 @@ ImageCanvas::ImageCanvas(QWidget *parent)
     setBackgroundBrush(QColor(60, 60, 60));
     setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
     setResizeAnchor(QGraphicsView::AnchorViewCenter);
-    setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
+    // Перерисовываются только изменившиеся участки, а не весь холст с картинкой.
+    setViewportUpdateMode(QGraphicsView::SmartViewportUpdate);
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
     setAcceptDrops(false);
@@ -51,6 +54,7 @@ void ImageCanvas::setImage(const QImage &image)
     pixmapItem_->setPixmap(QPixmap::fromImage(image));
     scene_->setSceneRect(QRectF(QPointF(0, 0), image.size()));
     zoomToFit();
+    updateCursor();
 }
 
 bool ImageCanvas::hasImage() const
@@ -84,8 +88,10 @@ void ImageCanvas::setDocument(AnnotationDocument *document)
 
 void ImageCanvas::setTool(Tool *tool)
 {
-    if (tool_ && tool_ != tool)
-        tool_->cancel();
+    if (tool_ == tool)
+        return;
+    if (tool_)
+        tool_->deactivate();
     tool_ = tool;
     updateCursor();
 }
@@ -100,16 +106,32 @@ AnnotationGraphicsItem *ImageCanvas::itemFor(int id) const
     return items_.value(id, nullptr);
 }
 
+void ImageCanvas::setSelectedIds(const QList<int> &ids)
+{
+    QList<int> valid;
+    QSet<int> seen;
+    for (int id : ids) {
+        if (itemFor(id) && !seen.contains(id)) {
+            seen.insert(id);
+            valid.append(id);
+        }
+    }
+    if (valid == selectedIds_)
+        return;
+
+    for (int id : qAsConst(selectedIds_)) {
+        if (AnnotationGraphicsItem *item = itemFor(id))
+            item->setHighlighted(false);
+    }
+    selectedIds_ = valid;
+    for (int id : qAsConst(selectedIds_))
+        itemFor(id)->setHighlighted(true);
+    emit selectionChanged(selectedIds_);
+}
+
 void ImageCanvas::setSelectedId(int id)
 {
-    if (id == selectedId_)
-        return;
-    if (AnnotationGraphicsItem *old = itemFor(selectedId_))
-        old->setHighlighted(false);
-    selectedId_ = itemFor(id) ? id : 0;
-    if (AnnotationGraphicsItem *item = itemFor(selectedId_))
-        item->setHighlighted(true);
-    emit selectedIdChanged(selectedId_);
+    setSelectedIds(id ? QList<int>{id} : QList<int>());
 }
 
 void ImageCanvas::ensureAnnotationVisible(int id)
@@ -161,6 +183,8 @@ void ImageCanvas::viewScaleChanged()
     for (QGraphicsItem *item : scene_->items()) {
         if (auto *annotationItem = qgraphicsitem_cast<AnnotationGraphicsItem *>(item))
             annotationItem->refresh();
+        else if (auto *brush = qgraphicsitem_cast<BrushCursorItem *>(item))
+            brush->refresh();
     }
     emit zoomChanged(viewScale());
 }
@@ -177,8 +201,11 @@ void ImageCanvas::addItem(int id)
 
 void ImageCanvas::removeItem(int id)
 {
-    if (id == selectedId_)
-        setSelectedId(0);
+    if (isSelected(id)) {
+        QList<int> rest = selectedIds_;
+        rest.removeAll(id);
+        setSelectedIds(rest);
+    }
     delete items_.take(id);
 }
 
@@ -205,13 +232,16 @@ void ImageCanvas::updateCursor()
         viewport()->setCursor(Qt::ClosedHandCursor);
     else if (spaceHeld_)
         viewport()->setCursor(Qt::OpenHandCursor);
+    else if (tool_ && hasImage() && (pointerInImage_ || buttonsHeld_))
+        viewport()->setCursor(tool_->cursorShape());
     else
-        viewport()->setCursor(tool_ ? tool_->cursorShape() : Qt::ArrowCursor);
+        viewport()->setCursor(Qt::ArrowCursor);
 }
 
 void ImageCanvas::mousePressEvent(QMouseEvent *event)
 {
     setFocus();
+    buttonsHeld_ = true;
     if (event->button() == Qt::MiddleButton || (spaceHeld_ && event->button() == Qt::LeftButton)) {
         panning_ = true;
         panLast_ = event->pos();
@@ -227,10 +257,17 @@ void ImageCanvas::mousePressEvent(QMouseEvent *event)
 void ImageCanvas::mouseMoveEvent(QMouseEvent *event)
 {
     const QPointF scenePos = mapToScene(event->pos());
+    const bool inside = hasImage() && imageRect().contains(scenePos);
+    const bool held = event->buttons() != Qt::NoButton;
+    if (inside != pointerInImage_ || held != buttonsHeld_) {
+        pointerInImage_ = inside;
+        buttonsHeld_ = held;
+        updateCursor();
+    }
     if (hasImage()) {
         const QPoint pixel(static_cast<int>(std::floor(scenePos.x())),
                            static_cast<int>(std::floor(scenePos.y())));
-        emit cursorPixelChanged(pixel, imageRect().contains(scenePos));
+        emit cursorPixelChanged(pixel, inside);
     }
 
     if (panning_) {
@@ -248,6 +285,8 @@ void ImageCanvas::mouseMoveEvent(QMouseEvent *event)
 
 void ImageCanvas::mouseReleaseEvent(QMouseEvent *event)
 {
+    buttonsHeld_ = event->buttons() != Qt::NoButton;
+    pointerInImage_ = hasImage() && imageRect().contains(mapToScene(event->pos()));
     if (panning_ && (event->button() == Qt::MiddleButton || event->button() == Qt::LeftButton)) {
         panning_ = false;
         updateCursor();
@@ -256,6 +295,7 @@ void ImageCanvas::mouseReleaseEvent(QMouseEvent *event)
     }
     if (tool_ && hasImage())
         tool_->mouseRelease(mapToScene(event->pos()), event);
+    updateCursor();
     event->accept();
 }
 
@@ -310,4 +350,13 @@ void ImageCanvas::focusOutEvent(QFocusEvent *event)
     spaceHeld_ = false;
     updateCursor();
     QGraphicsView::focusOutEvent(event);
+}
+
+void ImageCanvas::leaveEvent(QEvent *event)
+{
+    pointerInImage_ = false;
+    emit cursorPixelChanged(QPoint(), false);
+    if (tool_)
+        tool_->leave();
+    QGraphicsView::leaveEvent(event);
 }

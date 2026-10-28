@@ -3,6 +3,7 @@
 #include "tools/Tool.h"
 
 // Выбор и перемещение объектов мышью или стрелками (с Shift шаг 10 пикселей).
+// Ctrl + щелчок добавляет объект к выделению, выделенную группу можно тащить целиком.
 class SelectTool : public Tool
 {
 public:
@@ -19,6 +20,9 @@ public:
 private:
     int annotationAt(const QPointF &pos) const;
     QPointF dragDelta(const QPointF &pos) const;
+    // Сдвигает графические элементы выделенных объектов, не трогая документ.
+    void offsetSelectedItems(const QPointF &offset);
+    void moveSelection(const QPointF &delta);
 
     bool dragging_ = false;
     QPointF dragStart_;

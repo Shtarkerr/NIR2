@@ -25,6 +25,8 @@ QJsonObject JsonSerializer::toJson(const AnnotationDocument &doc, const QDir &ba
     root["format"] = QStringLiteral("image-annotator");
     root["version"] = FormatVersion;
     root["image"] = doc.imagePath().isEmpty() ? QString() : baseDir.relativeFilePath(doc.imagePath());
+    if (doc.isBlankCanvas())
+        root["canvas"] = Annotation::colorToString(doc.canvasColor());
     root["width"] = doc.imageSize().width();
     root["height"] = doc.imageSize().height();
     root["labels"] = QJsonArray::fromStringList(doc.labels());
@@ -69,11 +71,21 @@ bool JsonSerializer::fromJson(AnnotationDocument &doc, const QJsonObject &root,
                                               : QDir::cleanPath(baseDir.absoluteFilePath(image));
     const QSize size(root.value("width").toInt(), root.value("height").toInt());
 
+    // Вместо картинки может быть пустой холст заданного цвета.
+    QColor canvasColor;
+    if (root.contains("canvas")) {
+        canvasColor = QColor(root.value("canvas").toString());
+        if (!canvasColor.isValid() || size.isEmpty()) {
+            setError(error, QObject::tr("Некорректное описание холста"));
+            return false;
+        }
+    }
+
     QStringList labels;
     for (const QJsonValue &label : root.value("labels").toArray())
         labels.append(label.toString());
 
-    doc.reset(imagePath, size);
+    doc.reset(imagePath, size, canvasColor);
     doc.setLabels(labels);
     for (auto &annotation : annotations)
         doc.add(std::move(annotation));

@@ -96,11 +96,17 @@ void AnnotationDocument::setLabels(const QStringList &labels)
     emit labelsChanged();
 }
 
-void AnnotationDocument::reset(const QString &imagePath, const QSize &imageSize)
+void AnnotationDocument::reset(const QString &imagePath, const QSize &imageSize,
+                               const QColor &canvasColor)
 {
+    // Старые объекты живут до конца функции: подписчики documentReset (холст)
+    // ещё держат на них указатели и должны успеть от них отказаться.
+    AnnotationList old;
+    old.swap(annotations_);
+
     imagePath_ = imagePath;
     imageSize_ = imageSize;
-    annotations_.clear();
+    canvasColor_ = canvasColor;
     labels_.clear();
     nextId_ = 1;
     emit documentReset();

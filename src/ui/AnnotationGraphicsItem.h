@@ -5,6 +5,8 @@
 class Annotation;
 
 // Объект разметки на сцене. Сам объект не хранит, рисует через Annotation::paint().
+// Границу элемента кэширует: Qt требует, чтобы boundingRect() менялся только после
+// prepareGeometryChange(), иначе индекс сцены портится и программа может упасть.
 class AnnotationGraphicsItem : public QGraphicsItem
 {
 public:
@@ -13,11 +15,9 @@ public:
     explicit AnnotationGraphicsItem(const Annotation *annotation, QGraphicsItem *parent = nullptr);
 
     int type() const override { return Type; }
-    const Annotation *annotation() const { return annotation_; }
-    int annotationId() const;
 
     void setHighlighted(bool highlighted);
-    // Вызывается после изменения геометрии объекта или масштаба вида.
+    // Вызывается после изменения объекта или масштаба вида: пересчитывает границу.
     void refresh();
 
     QRectF boundingRect() const override;
@@ -30,8 +30,10 @@ public:
 
 private:
     QRectF labelRect() const;
+    QRectF computeBounds() const;
 
     const Annotation *annotation_;
+    QRectF bounds_;
     bool highlighted_ = false;
 
     static qreal s_viewScale;

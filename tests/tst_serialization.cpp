@@ -37,6 +37,7 @@ void fillDocument(AnnotationDocument &doc, const QString &imagePath)
     auto contour = std::make_unique<ContourAnnotation>(QVector<QPoint>{{100, 100}, {150, 90}, {160, 140}, {110, 150}}, true);
     contour->setLabel("tree");
     contour->setColor(QColor("#ffaa00"));
+    contour->setWidth(7);
     doc.add(std::move(contour));
 }
 
@@ -98,6 +99,37 @@ private slots:
         }
     }
 
+    void blankCanvasRoundTrip()
+    {
+        QTemporaryDir dir;
+        const QString jsonPath = dir.filePath("canvas.json");
+
+        AnnotationDocument doc;
+        doc.reset(QString(), QSize(300, 200), QColor("#336699"));
+        doc.add(std::make_unique<PointAnnotation>(QPoint(10, 20)));
+        QVERIFY(doc.isBlankCanvas());
+
+        QString error;
+        QVERIFY2(JsonSerializer::save(doc, jsonPath, &error), qPrintable(error));
+        AnnotationDocument loaded;
+        QVERIFY2(JsonSerializer::load(loaded, jsonPath, &error), qPrintable(error));
+        QVERIFY(loaded.isBlankCanvas());
+        QCOMPARE(loaded.canvasColor(), QColor("#336699"));
+        QCOMPARE(loaded.imageSize(), QSize(300, 200));
+        QCOMPARE(loaded.count(), 1);
+
+        QVERIFY(TxtExporter::toText(doc).contains("# canvas: #336699\n"));
+    }
+
+    void contourWithoutWidthDefaultsToOne()
+    {
+        const QJsonObject json{{"type", "contour"}, {"color", "#ff0000"},
+                               {"vertices", QJsonArray{QJsonArray{1, 2}, QJsonArray{5, 6}}}};
+        std::unique_ptr<Annotation> contour = AnnotationFactory::fromJson(json);
+        QVERIFY(contour);
+        QCOMPARE(static_cast<ContourAnnotation *>(contour.get())->width(), 1);
+    }
+
     void loadErrorKeepsDocument()
     {
         QTemporaryDir dir;
@@ -132,7 +164,7 @@ private slots:
         // Количество пикселей в заголовке контура совпадает со строкой P.
         const auto *contour = static_cast<const ContourAnnotation *>(doc.annotations().back().get());
         const int pixelCount = contour->rasterize().size();
-        QVERIFY(text.contains(QStringLiteral("CONTOUR id=4 label=\"tree\" color=#ffaa00 closed=1 vertices=4 pixels=%1")
+        QVERIFY(text.contains(QStringLiteral("CONTOUR id=4 label=\"tree\" color=#ffaa00 closed=1 width=7 vertices=4 pixels=%1")
                                   .arg(pixelCount)));
         QVERIFY(text.contains("\n  V 100 100; 150 90; 160 140; 110 150\n"));
 

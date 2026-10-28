@@ -22,6 +22,10 @@ public:
     bool isClosed() const { return closed_; }
     void setClosed(bool closed) { closed_ = closed; }
 
+    // Толщина линии (размер кисти) в пикселях изображения.
+    int width() const { return width_; }
+    void setWidth(int width) { width_ = width < 1 ? 1 : width; }
+
     // Последовательные пиксели контура (алгоритм Брезенхэма между вершинами).
     QVector<QPoint> rasterize() const;
 
@@ -44,4 +48,5 @@ private:
 
     QVector<QPoint> vertices_;
     bool closed_ = true;
+    int width_ = 1;
 };

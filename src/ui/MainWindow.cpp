@@ -11,6 +11,7 @@
 #include "ui/AnnotationListDock.h"
 #include "ui/Icons.h"
 #include "ui/ImageCanvas.h"
+#include "ui/NewCanvasDialog.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -18,6 +19,7 @@
 #include <QCloseEvent>
 #include <QColorDialog>
 #include <QComboBox>
+#include <QDir>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
@@ -30,10 +32,13 @@
 #include <QMimeData>
 #include <QSettings>
 #include <QSignalBlocker>
+#include <QSpinBox>
 #include <QStatusBar>
 #include <QToolBar>
 #include <QToolButton>
 #include <QUndoStack>
+
+#include <algorithm>
 
 namespace {
 
@@ -48,6 +53,23 @@ QString imageFilter()
 QString annotationFilter()
 {
     return MainWindow::tr("Разметка JSON (*.json)");
+}
+
+// Версия раскладки панелей. Меняется, когда панели переезжают, чтобы
+// сохранённое старое расположение не восстанавливалось.
+constexpr int WindowStateVersion = 3;
+
+constexpr int MaxBrushSize = 500;
+
+// Иконки инструментов в том же порядке, что и MainWindow::createTools().
+const Icons::Glyph ToolGlyphs[] = {Icons::Glyph::Select, Icons::Glyph::Point, Icons::Glyph::Rect,
+                                   Icons::Glyph::Ellipse, Icons::Glyph::Contour};
+
+QImage makeCanvasImage(const QSize &size, const QColor &color)
+{
+    QImage image(size, QImage::Format_RGB32);
+    image.fill(color);
+    return image;
 }
 
 } // namespace
@@ -74,11 +96,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(undoStack_, &QUndoStack::cleanChanged, this, [this](bool clean) { setWindowModified(!clean); });
     connect(document_, &AnnotationDocument::labelsChanged, this, &MainWindow::updateLabelChoices);
-    connect(canvas_, &ImageCanvas::selectedIdChanged, listDock_, &AnnotationListDock::setSelectedId);
-    connect(canvas_, &ImageCanvas::selectedIdChanged, this, &MainWindow::updateActions);
-    connect(listDock_, &AnnotationListDock::annotationSelected, this, [this](int id) {
-        canvas_->setSelectedId(id);
-        canvas_->ensureAnnotationVisible(id);
+    connect(canvas_, &ImageCanvas::selectionChanged, listDock_, &AnnotationListDock::setSelectedIds);
+    connect(canvas_, &ImageCanvas::selectionChanged, this, &MainWindow::updateActions);
+    connect(listDock_, &AnnotationListDock::selectionChanged, this, [this](const QList<int> &ids) {
+        canvas_->setSelectedIds(ids);
+        if (ids.size() == 1)
+            canvas_->ensureAnnotationVisible(ids.first());
     });
 
     setAcceptDrops(true);
@@ -86,9 +109,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     QSettings settings;
     restoreGeometry(settings.value(QStringLiteral("geometry")).toByteArray());
-    restoreState(settings.value(QStringLiteral("windowState")).toByteArray());
+    resizeDocks({listDock_}, {420}, Qt::Horizontal);
+    restoreState(settings.value(QStringLiteral("windowState")).toByteArray(), WindowStateVersion);
 
+    updateIcons();
     setColor(Qt::red);
+    setBrushSize(toolContext_.style.brushSize);
     activateTool(0);
     updateTitle();
     updateActions();
@@ -118,6 +144,8 @@ void MainWindow::createActions()
 {
     // Файл
     QMenu *fileMenu = menuBar()->addMenu(tr("&Файл"));
+    QAction *newCanvasAction = fileMenu->addAction(tr("&Новый холст..."), this, &MainWindow::newCanvas);
+    newCanvasAction->setShortcut(QKeySequence::New);
     QAction *openImageAction = fileMenu->addAction(tr("Открыть &изображение..."), this, &MainWindow::openImage);
     openImageAction->setShortcut(QKeySequence::Open);
     QAction *openAnnotationsAction = fileMenu->addAction(tr("Открыть &разметку..."), this, &MainWindow::openAnnotations);
@@ -157,16 +185,15 @@ void MainWindow::createActions()
     actualAction->setShortcut(QKeySequence(tr("Ctrl+1")));
     viewMenu->addSeparator();
     viewMenu->addAction(listDock_->toggleViewAction());
+    listDock_->addContextAction(deleteAction_);
 
     // Инструменты
     QMenu *toolsMenu = menuBar()->addMenu(tr("&Инструменты"));
     toolGroup_ = new QActionGroup(this);
     toolGroup_->setExclusive(true);
-    const Icons::Glyph glyphs[] = {Icons::Glyph::Select, Icons::Glyph::Point, Icons::Glyph::Rect,
-                                   Icons::Glyph::Ellipse, Icons::Glyph::Contour};
     const char *shortcuts[] = {"V", "P", "R", "E", "C"};
     for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
-        QAction *action = new QAction(Icons::glyph(glyphs[i]), tools_[i]->name(), toolGroup_);
+        QAction *action = new QAction(tools_[i]->name(), toolGroup_);
         action->setCheckable(true);
         action->setShortcut(QKeySequence(QString::fromLatin1(shortcuts[i])));
         action->setToolTip(QStringLiteral("%1 (%2)").arg(tools_[i]->name(), QString::fromLatin1(shortcuts[i])));
@@ -175,13 +202,18 @@ void MainWindow::createActions()
     }
     toolsMenu->addSeparator();
 
-    fillAction_ = new QAction(Icons::glyph(Icons::Glyph::Fill), tr("&Заливка фигур"), this);
+    fillAction_ = new QAction(tr("&Заливка фигур"), this);
     fillAction_->setCheckable(true);
     fillAction_->setShortcut(QKeySequence(tr("F")));
     fillAction_->setToolTip(tr("Сплошная заливка прямоугольников и эллипсов (F)"));
     connect(fillAction_, &QAction::toggled, this, [this](bool on) { toolContext_.style.filled = on; });
     toolsMenu->addAction(fillAction_);
     toolsMenu->addAction(tr("&Цвет..."), this, &MainWindow::chooseColor);
+    toolsMenu->addSeparator();
+    toolsMenu->addAction(tr("Увеличить кисть"), this, [this] { changeBrushSize(+1); })
+        ->setShortcut(QKeySequence(Qt::Key_BracketRight));
+    toolsMenu->addAction(tr("Уменьшить кисть"), this, [this] { changeBrushSize(-1); })
+        ->setShortcut(QKeySequence(Qt::Key_BracketLeft));
 
     // Справка
     QMenu *helpMenu = menuBar()->addMenu(tr("&Справка"));
@@ -191,18 +223,24 @@ void MainWindow::createActions()
 
 void MainWindow::createToolBars()
 {
-    QToolBar *toolBar = addToolBar(tr("Инструменты"));
-    toolBar->setObjectName(QStringLiteral("ToolsToolBar"));
-    toolBar->setIconSize(QSize(24, 24));
-    toolBar->addActions(toolGroup_->actions());
-    toolBar->addSeparator();
+    // Слева вертикальная панель инструментов, как в графических редакторах.
+    QToolBar *toolBox = new QToolBar(tr("Инструменты"), this);
+    toolBox->setObjectName(QStringLiteral("ToolBox"));
+    toolBox->setIconSize(QSize(28, 28));
+    toolBox->setAllowedAreas(Qt::LeftToolBarArea | Qt::RightToolBarArea);
+    toolBox->addActions(toolGroup_->actions());
+    toolBox->addSeparator();
 
-    colorButton_ = new QToolButton(toolBar);
-    colorButton_->setIconSize(QSize(20, 20));
+    colorButton_ = new QToolButton(toolBox);
+    colorButton_->setIconSize(QSize(24, 24));
     connect(colorButton_, &QToolButton::clicked, this, &MainWindow::chooseColor);
-    toolBar->addWidget(colorButton_);
-    toolBar->addAction(fillAction_);
-    toolBar->addSeparator();
+    toolBox->addWidget(colorButton_);
+    toolBox->addAction(fillAction_);
+    addToolBar(Qt::LeftToolBarArea, toolBox);
+
+    // Сверху параметры: метка и размер кисти.
+    QToolBar *toolBar = addToolBar(tr("Параметры"));
+    toolBar->setObjectName(QStringLiteral("OptionsBar"));
 
     toolBar->addWidget(new QLabel(tr(" Метка: "), toolBar));
     labelCombo_ = new QComboBox(toolBar);
@@ -216,6 +254,16 @@ void MainWindow::createToolBars()
     connect(labelCombo_->lineEdit(), &QLineEdit::returnPressed, canvas_,
             [this] { canvas_->setFocus(); });
     toolBar->addWidget(labelCombo_);
+    toolBar->addSeparator();
+
+    toolBar->addWidget(new QLabel(tr(" Кисть: "), toolBar));
+    brushSpin_ = new QSpinBox(toolBar);
+    brushSpin_->setRange(1, MaxBrushSize);
+    brushSpin_->setSuffix(QStringLiteral(" px"));
+    brushSpin_->setToolTip(tr("Размер кисти для контура. Клавиши [ и ] меняют его на ходу."));
+    connect(brushSpin_, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::setBrushSize);
+    connect(brushSpin_, &QSpinBox::editingFinished, canvas_, [this] { canvas_->setFocus(); });
+    toolBar->addWidget(brushSpin_);
 }
 
 void MainWindow::createStatusBar()
@@ -243,6 +291,25 @@ bool MainWindow::openPath(const QString &path)
     if (QFileInfo(path).suffix().compare(QLatin1String("json"), Qt::CaseInsensitive) == 0)
         return openAnnotationFile(path);
     return openImageFile(path);
+}
+
+void MainWindow::newCanvas()
+{
+    if (!maybeSave())
+        return;
+
+    QSettings settings;
+    NewCanvasDialog dialog(settings.value(QStringLiteral("canvas/size"), QSize(800, 600)).toSize(),
+                           settings.value(QStringLiteral("canvas/color"), QColor(Qt::white)).value<QColor>(),
+                           this);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    settings.setValue(QStringLiteral("canvas/size"), dialog.canvasSize());
+    settings.setValue(QStringLiteral("canvas/color"), dialog.canvasColor());
+
+    const QStringList labels = document_->labels();
+    startDocument(makeCanvasImage(dialog.canvasSize(), dialog.canvasColor()), QString(), dialog.canvasColor());
+    document_->setLabels(labels);
 }
 
 void MainWindow::openImage()
@@ -285,15 +352,10 @@ bool MainWindow::openImageFile(const QString &path)
 
     // Метки оставляем, чтобы при переходе к следующей картинке не вводить их заново.
     const QStringList labels = document_->labels();
-    canvas_->setImage(image);
-    document_->reset(QFileInfo(path).absoluteFilePath(), image.size());
+    startDocument(image, QFileInfo(path).absoluteFilePath(), QColor());
     document_->setLabels(labels);
-    undoStack_->clear();
-    annotationPath_.clear();
 
     rememberDir(path);
-    updateTitle();
-    updateActions();
     statusBar()->showMessage(tr("Открыто изображение %1").arg(QFileInfo(path).fileName()), 3000);
     return true;
 }
@@ -308,13 +370,30 @@ bool MainWindow::openAnnotationFile(const QString &path)
         return false;
     }
 
+    if (loaded.isBlankCanvas())
+        startDocument(makeCanvasImage(loaded.imageSize(), loaded.canvasColor()), QString(), loaded.canvasColor());
+    else if (!openImageForAnnotations(path, loaded))
+        return false;
+
+    document_->setLabels(loaded.labels());
+    for (const auto &annotation : loaded.annotations())
+        document_->add(annotation->clone());
+    annotationPath_ = QFileInfo(path).absoluteFilePath();
+
+    rememberDir(path);
+    statusBar()->showMessage(tr("Загружено объектов: %1").arg(document_->count()), 3000);
+    return true;
+}
+
+bool MainWindow::openImageForAnnotations(const QString &annotationPath, const AnnotationDocument &loaded)
+{
     QString imagePath = loaded.imagePath();
     if (imagePath.isEmpty() || !QFileInfo::exists(imagePath)) {
         QMessageBox::information(this, tr("Изображение не найдено"),
                                  tr("Изображение %1 не найдено. Укажите, где оно лежит.")
                                      .arg(QFileInfo(imagePath).fileName()));
         imagePath = QFileDialog::getOpenFileName(this, tr("Изображение для разметки"),
-                                                 QFileInfo(path).absolutePath(), imageFilter());
+                                                 QFileInfo(annotationPath).absolutePath(), imageFilter());
         if (imagePath.isEmpty())
             return false;
     }
@@ -322,26 +401,26 @@ bool MainWindow::openAnnotationFile(const QString &path)
     QImage image;
     if (!loadImage(imagePath, image))
         return false;
-    if (loaded.imageSize().isValid() && loaded.imageSize() != image.size()) {
+    if (!loaded.imageSize().isEmpty() && loaded.imageSize() != image.size()) {
         QMessageBox::warning(this, tr("Внимание"),
                              tr("Размер изображения (%1x%2) не совпадает с указанным в разметке (%3x%4).")
                                  .arg(image.width()).arg(image.height())
                                  .arg(loaded.imageSize().width()).arg(loaded.imageSize().height()));
     }
 
-    canvas_->setImage(image);
-    document_->reset(QFileInfo(imagePath).absoluteFilePath(), image.size());
-    document_->setLabels(loaded.labels());
-    for (const auto &annotation : loaded.annotations())
-        document_->add(annotation->clone());
-    undoStack_->clear();
-    annotationPath_ = QFileInfo(path).absoluteFilePath();
+    startDocument(image, QFileInfo(imagePath).absoluteFilePath(), QColor());
+    return true;
+}
 
-    rememberDir(path);
+// Показывает картинку (или пустой холст) и начинает для неё новую разметку.
+void MainWindow::startDocument(const QImage &image, const QString &imagePath, const QColor &canvasColor)
+{
+    canvas_->setImage(image);
+    document_->reset(imagePath, image.size(), canvasColor);
+    undoStack_->clear();
+    annotationPath_.clear();
     updateTitle();
     updateActions();
-    statusBar()->showMessage(tr("Загружено объектов: %1").arg(document_->count()), 3000);
-    return true;
 }
 
 bool MainWindow::saveAnnotations()
@@ -410,21 +489,69 @@ void MainWindow::chooseColor()
 void MainWindow::setColor(const QColor &color)
 {
     toolContext_.style.color = color;
-    colorButton_->setIcon(Icons::colorSwatch(color, 20));
+    colorButton_->setIcon(Icons::colorSwatch(color, 24));
     colorButton_->setToolTip(tr("Текущий цвет: %1").arg(Annotation::colorToString(color)));
+}
+
+void MainWindow::setBrushSize(int size)
+{
+    size = std::clamp(size, 1, MaxBrushSize);
+    toolContext_.style.brushSize = size;
+    if (brushSpin_->value() != size) {
+        const QSignalBlocker blocker(brushSpin_);
+        brushSpin_->setValue(size);
+    }
+    for (const auto &tool : tools_)
+        tool->styleChanged();
+}
+
+void MainWindow::changeBrushSize(int direction)
+{
+    // Шаг растёт вместе с кистью, как в графических редакторах.
+    const int size = toolContext_.style.brushSize;
+    const int step = size < 10 ? 1 : size < 50 ? 5 : 10;
+    setBrushSize(size + direction * step);
 }
 
 void MainWindow::deleteSelected()
 {
-    const int id = canvas_->selectedId();
-    if (id)
+    const QList<int> ids = canvas_->selectedIds();
+    if (ids.isEmpty())
+        return;
+    // Снимаем выделение заранее, иначе после каждого удаления его пришлось бы пересчитывать.
+    canvas_->setSelectedId(0);
+
+    // Несколько удалений объединяются, чтобы Ctrl+Z вернул их все разом.
+    if (ids.size() > 1)
+        undoStack_->beginMacro(tr("Удаление объектов: %1").arg(ids.size()));
+    for (int id : ids)
         undoStack_->push(new RemoveAnnotationCommand(document_, id));
+    if (ids.size() > 1)
+        undoStack_->endMacro();
 }
 
 void MainWindow::activateTool(int index)
 {
     canvas_->setTool(tools_[static_cast<size_t>(index)].get());
     toolGroup_->actions().at(index)->setChecked(true);
+}
+
+void MainWindow::updateIcons()
+{
+    const QList<QAction *> toolActions = toolGroup_->actions();
+    for (int i = 0; i < toolActions.size(); ++i)
+        toolActions[i]->setIcon(Icons::glyph(ToolGlyphs[i]));
+    fillAction_->setIcon(Icons::glyph(Icons::Glyph::Fill));
+    colorButton_->setIcon(Icons::colorSwatch(toolContext_.style.color, 24));
+}
+
+void MainWindow::changeEvent(QEvent *event)
+{
+    // Тему KDE можно сменить на ходу, иконки подстраиваются под новые цвета.
+    // Событие может прийти, пока окно ещё строится, тогда иконки нарисует конструктор.
+    if (event->type() == QEvent::PaletteChange && toolGroup_ && colorButton_)
+        updateIcons();
+    QMainWindow::changeEvent(event);
 }
 
 void MainWindow::updateLabelChoices()
@@ -438,8 +565,11 @@ void MainWindow::updateLabelChoices()
 
 void MainWindow::updateTitle()
 {
-    const QString name = canvas_->hasImage() ? QFileInfo(document_->imagePath()).fileName()
-                                             : tr("нет изображения");
+    QString name = tr("нет изображения");
+    if (document_->isBlankCanvas())
+        name = tr("холст");
+    else if (canvas_->hasImage())
+        name = QFileInfo(document_->imagePath()).fileName();
     setWindowTitle(tr("%1[*] - Разметка изображений").arg(name));
     setWindowModified(!undoStack_->isClean());
     sizeLabel_->setText(canvas_->hasImage()
@@ -453,11 +583,17 @@ void MainWindow::updateActions()
     saveAction_->setEnabled(hasImage);
     saveAsAction_->setEnabled(hasImage);
     exportTxtAction_->setEnabled(hasImage);
-    deleteAction_->setEnabled(canvas_->selectedId() != 0);
+    const int selected = canvas_->selectedIds().size();
+    deleteAction_->setEnabled(selected > 0);
+    deleteAction_->setText(selected > 1 ? tr("&Удалить объекты (%1)").arg(selected) : tr("&Удалить объект"));
 }
 
 QString MainWindow::defaultOutputPath(const QString &suffix) const
 {
+    if (document_->imagePath().isEmpty()) {
+        const QString dir = lastDir().isEmpty() ? QDir::homePath() : lastDir();
+        return dir + QStringLiteral("/canvas.") + suffix;
+    }
     const QFileInfo image(document_->imagePath());
     return image.absolutePath() + QLatin1Char('/') + image.completeBaseName() + QLatin1Char('.') + suffix;
 }
@@ -480,7 +616,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     }
     QSettings settings;
     settings.setValue(QStringLiteral("geometry"), saveGeometry());
-    settings.setValue(QStringLiteral("windowState"), saveState());
+    settings.setValue(QStringLiteral("windowState"), saveState(WindowStateVersion));
     event->accept();
 }
 
@@ -522,8 +658,13 @@ void MainWindow::showShortcuts()
         "<tr><td><b>E</b></td><td>эллипс, с Shift круг</td></tr>"
         "<tr><td><b>C</b></td><td>контур: обвести с зажатой кнопкой или ставить вершины щелчками; "
         "двойной щелчок или Enter завершают, Backspace убирает вершину, Esc отменяет</td></tr>"
+        "<tr><td><b>[ и ]</b></td><td>уменьшить и увеличить кисть контура</td></tr>"
         "<tr><td><b>F</b></td><td>заливка прямоугольников и эллипсов</td></tr>"
-        "<tr><td><b>Del</b></td><td>удалить выбранный объект</td></tr>"
+        "<tr><td><b>Ctrl+N</b></td><td>новый холст выбранного цвета</td></tr>"
+        "<tr><td><b>Ctrl + щелчок</b></td><td>добавить объект к выделению или убрать из него</td></tr>"
+        "<tr><td><b>Список объектов</b></td><td>протяните мышью по строкам, чтобы выделить несколько, "
+        "также работают Shift и Ctrl</td></tr>"
+        "<tr><td><b>Del</b></td><td>удалить выделенные объекты</td></tr>"
         "<tr><td><b>Колесо</b></td><td>масштаб</td></tr>"
         "<tr><td><b>Пробел + мышь, средняя кнопка</b></td><td>прокрутка изображения</td></tr>"
         "<tr><td><b>Ctrl+Z / Ctrl+Y</b></td><td>отменить / повторить</td></tr>"

@@ -20,6 +20,7 @@ struct DrawingStyle
     QColor color = Qt::red;
     bool filled = false;
     QString label;
+    int brushSize = 5;
 };
 
 // То, с чем работают инструменты. Хранится в главном окне.
@@ -55,6 +56,13 @@ public:
     virtual bool keyPress(QKeyEvent *event);
     // Прерывает незавершённое действие (например, при смене инструмента).
     virtual void cancel();
+
+    // Пользователь переключился на другой инструмент.
+    virtual void deactivate() { cancel(); }
+    // Курсор ушёл с холста.
+    virtual void leave() {}
+    // Поменялись параметры рисования (цвет, заливка, размер кисти).
+    virtual void styleChanged() {}
 
 protected:
     // Точка, ограниченная рамками изображения.

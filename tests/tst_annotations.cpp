@@ -81,6 +81,18 @@ private slots:
         QVERIFY(!contour.hitTest(QPointF(5.5, 5.5), 1));
     }
 
+    void thickContour()
+    {
+        ContourAnnotation contour({{0, 0}, {10, 0}}, false);
+        QVERIFY(!contour.hitTest(QPointF(5.5, 4.5), 1));
+        contour.setWidth(9);
+        // Половина толщины 4.5 плюс допуск 1.
+        QVERIFY(contour.hitTest(QPointF(5.5, 4.5), 1));
+        QCOMPARE(contour.boundingRect(), QRectF(-4, -4, 19, 9));
+        contour.setWidth(0);
+        QCOMPARE(contour.width(), 1);
+    }
+
     void translateAndClone()
     {
         RectAnnotation rect(QRectF(0, 0, 10, 10));

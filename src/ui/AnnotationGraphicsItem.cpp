@@ -13,24 +13,22 @@ namespace {
 constexpr qreal MarkerMargin = 8;   // запас вокруг фигуры в экранных пикселях
 constexpr qreal LabelPadding = 3;
 
-QFont labelFont()
+const QFont &labelFont()
 {
-    QFont font;
-    font.setPixelSize(12);
+    static const QFont font = [] {
+        QFont f;
+        f.setPixelSize(12);
+        return f;
+    }();
     return font;
 }
 
 } // namespace
 
 AnnotationGraphicsItem::AnnotationGraphicsItem(const Annotation *annotation, QGraphicsItem *parent)
-    : QGraphicsItem(parent), annotation_(annotation)
+    : QGraphicsItem(parent), annotation_(annotation), bounds_(computeBounds())
 {
     setZValue(1);
-}
-
-int AnnotationGraphicsItem::annotationId() const
-{
-    return annotation_->id();
 }
 
 void AnnotationGraphicsItem::setHighlighted(bool highlighted)
@@ -43,7 +41,11 @@ void AnnotationGraphicsItem::setHighlighted(bool highlighted)
 
 void AnnotationGraphicsItem::refresh()
 {
-    prepareGeometryChange();
+    const QRectF bounds = computeBounds();
+    if (bounds != bounds_) {
+        prepareGeometryChange();
+        bounds_ = bounds;
+    }
     update();
 }
 
@@ -66,6 +68,11 @@ QRectF AnnotationGraphicsItem::labelRect() const
 }
 
 QRectF AnnotationGraphicsItem::boundingRect() const
+{
+    return bounds_;
+}
+
+QRectF AnnotationGraphicsItem::computeBounds() const
 {
     const qreal m = MarkerMargin / s_viewScale;
     QRectF rect = annotation_->boundingRect().adjusted(-m, -m, m, m);

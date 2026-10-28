@@ -23,6 +23,9 @@ public:
 
     QString imagePath() const { return imagePath_; }
     QSize imageSize() const { return imageSize_; }
+    // Цвет пустого холста. Если документ создан по картинке, цвет невалидный.
+    QColor canvasColor() const { return canvasColor_; }
+    bool isBlankCanvas() const { return imagePath_.isEmpty() && canvasColor_.isValid(); }
 
     const AnnotationList &annotations() const { return annotations_; }
     int count() const { return static_cast<int>(annotations_.size()); }
@@ -44,8 +47,9 @@ public:
     void addLabel(const QString &label);
     void setLabels(const QStringList &labels);
 
-    // Очищает документ и связывает его с новым изображением.
-    void reset(const QString &imagePath = QString(), const QSize &imageSize = QSize());
+    // Очищает документ и связывает его с новым изображением или пустым холстом.
+    void reset(const QString &imagePath = QString(), const QSize &imageSize = QSize(),
+               const QColor &canvasColor = QColor());
 
 signals:
     void annotationAdded(int id);
@@ -57,6 +61,7 @@ signals:
 private:
     QString imagePath_;
     QSize imageSize_;
+    QColor canvasColor_;
     AnnotationList annotations_;
     QStringList labels_;
     int nextId_ = 1;
