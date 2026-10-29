@@ -21,9 +21,10 @@ QString TxtExporter::toText(const AnnotationDocument &doc)
         << "# objects: " << doc.count() << '\n'
         << "#\n"
         << QStringLiteral("# Координаты в пикселях изображения, начало в левом верхнем углу.\n")
-        << QStringLiteral("# POINT   x y: отмеченный пиксель\n")
-        << QStringLiteral("# RECT    filled x1 y1 .. x4 y4: вершины по часовой стрелке от левой верхней\n")
-        << QStringLiteral("# ELLIPSE filled cx cy rx ry: центр и полуоси\n")
+        << QStringLiteral("# POINT   x y size: отмеченный пиксель и диаметр точки\n")
+        << QStringLiteral("# RECT    filled width x1 y1 .. x4 y4: заливка, толщина рамки,\n"
+                          "#         вершины по часовой стрелке от левой верхней\n")
+        << QStringLiteral("# ELLIPSE filled width cx cy rx ry: заливка, толщина рамки, центр и полуоси\n")
         << QStringLiteral("# CONTOUR closed width vertices pixels: width - толщина кисти,\n"
                           "#         строка V: вершины, строка P: пиксели средней линии контура по порядку\n")
         << '\n';

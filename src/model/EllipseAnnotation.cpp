@@ -13,18 +13,21 @@ void EllipseAnnotation::setFromRect(const QRectF &rect)
 
 QString EllipseAnnotation::describe() const
 {
-    return QStringLiteral("центр (%1, %2), полуоси %3 и %4")
+    const QString geometry = QStringLiteral("центр (%1, %2), полуоси %3 и %4")
         .arg(formatNumber(center_.x()), formatNumber(center_.y()),
              formatNumber(rx_), formatNumber(ry_));
+    return isFilled() ? geometry : QStringLiteral("%1, рамка %2 px").arg(geometry).arg(width());
 }
 
 QRectF EllipseAnnotation::boundingRect() const
 {
-    return QRectF(center_.x() - rx_, center_.y() - ry_, 2 * rx_, 2 * ry_);
+    const qreal m = strokeMargin();
+    return QRectF(center_.x() - rx_ - m, center_.y() - ry_ - m, 2 * (rx_ + m), 2 * (ry_ + m));
 }
 
 bool EllipseAnnotation::hitTest(const QPointF &pos, qreal tolerance) const
 {
+    tolerance += strokeMargin();
     const QPointF d = pos - center_;
     const auto inside = [&d](qreal a, qreal b) {
         if (a <= 0 || b <= 0)
@@ -39,9 +42,9 @@ bool EllipseAnnotation::hitTest(const QPointF &pos, qreal tolerance) const
     return !inside(rx_ - tolerance, ry_ - tolerance);
 }
 
-void EllipseAnnotation::paint(QPainter &painter, qreal /*scale*/) const
+void EllipseAnnotation::paint(QPainter &painter, qreal scale) const
 {
-    painter.setPen(outlinePen());
+    painter.setPen(shapePen(scale));
     painter.setBrush(fillBrush());
     painter.drawEllipse(center_, rx_, ry_);
 }
@@ -54,6 +57,7 @@ std::unique_ptr<Annotation> EllipseAnnotation::clone() const
 void EllipseAnnotation::writeJsonGeometry(QJsonObject &obj) const
 {
     obj["filled"] = isFilled();
+    obj["width"] = width();
     obj["cx"] = center_.x();
     obj["cy"] = center_.y();
     obj["rx"] = rx_;
@@ -71,6 +75,7 @@ bool EllipseAnnotation::readJsonGeometry(const QJsonObject &obj)
     if (rx < 0 || ry < 0)
         return false;
     setFilled(obj.value("filled").toBool(false));
+    setWidth(obj.value("width").toInt(1));
     center_ = QPointF(obj.value("cx").toDouble(), obj.value("cy").toDouble());
     rx_ = rx;
     ry_ = ry;
@@ -80,6 +85,7 @@ bool EllipseAnnotation::readJsonGeometry(const QJsonObject &obj)
 void EllipseAnnotation::writeTxtGeometry(QTextStream &out) const
 {
     out << " filled=" << (isFilled() ? 1 : 0)
+        << " width=" << width()
         << " cx=" << formatNumber(center_.x())
         << " cy=" << formatNumber(center_.y())
         << " rx=" << formatNumber(rx_)

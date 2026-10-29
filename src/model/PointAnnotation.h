@@ -4,7 +4,7 @@
 
 #include <QPoint>
 
-// Отмеченная точка (один пиксель).
+// Отмеченная точка: кружок с центром в пикселе pos.
 class PointAnnotation : public Annotation
 {
 public:
@@ -13,6 +13,10 @@ public:
 
     QPoint pos() const { return pos_; }
     void setPos(const QPoint &pos) { pos_ = pos; }
+
+    // Диаметр точки (размер кисти) в пикселях изображения.
+    int size() const { return size_; }
+    void setSize(int size) { size_ = size < 1 ? 1 : size; }
 
     Type type() const override { return Type::Point; }
     QString typeName() const override { return QStringLiteral("point"); }
@@ -32,4 +36,5 @@ private:
     QPointF center() const { return QPointF(pos_) + QPointF(0.5, 0.5); }
 
     QPoint pos_;
+    int size_ = 1;
 };

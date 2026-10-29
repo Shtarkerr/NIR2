@@ -20,6 +20,19 @@ private slots:
         QVERIFY(!point.hitTest(QPointF(20, 20), 3));
     }
 
+    void pointSize()
+    {
+        PointAnnotation point(QPoint(10, 10));
+        QCOMPARE(point.boundingRect(), QRectF(10, 10, 1, 1));
+        point.setSize(9);
+        // Радиус 4.5 плюс допуск 1.
+        QVERIFY(point.hitTest(QPointF(16, 10.5), 1));
+        QVERIFY(!point.hitTest(QPointF(17, 10.5), 1));
+        QCOMPARE(point.boundingRect(), QRectF(6, 6, 9, 9));
+        point.setSize(0);
+        QCOMPARE(point.size(), 1);
+    }
+
     void rectOutlineVsFilled()
     {
         RectAnnotation rect(QRectF(0, 0, 100, 50));
@@ -45,6 +58,9 @@ private slots:
         QCOMPARE(ellipse.center(), QPointF(30, 30));
         QCOMPARE(ellipse.radiusX(), 20.0);
         QCOMPARE(ellipse.radiusY(), 10.0);
+        // Рамка толщиной 1 выходит за границу на половину пикселя, у залитой рамки нет.
+        QCOMPARE(ellipse.boundingRect(), QRectF(9.5, 19.5, 41, 21));
+        ellipse.setFilled(true);
         QCOMPARE(ellipse.boundingRect(), QRectF(10, 20, 40, 20));
     }
 
@@ -56,6 +72,26 @@ private slots:
         QVERIFY(!ellipse.hitTest(QPointF(20, 10), 1));
         ellipse.setFilled(true);
         QVERIFY(ellipse.hitTest(QPointF(0, 0), 1));
+    }
+
+    void thickShapeOutline()
+    {
+        RectAnnotation rect(QRectF(0, 0, 100, 50));
+        QVERIFY(!rect.hitTest(QPointF(5, 25), 1));
+        rect.setWidth(10);
+        // Половина толщины 5 плюс допуск 1, с обеих сторон границы.
+        QVERIFY(rect.hitTest(QPointF(5, 25), 1));
+        QVERIFY(rect.hitTest(QPointF(-5, 25), 1));
+        QVERIFY(!rect.hitTest(QPointF(7, 25), 1));
+        QCOMPARE(rect.boundingRect(), QRectF(-5, -5, 110, 60));
+
+        EllipseAnnotation ellipse(QPointF(0, 0), 20, 10);
+        ellipse.setWidth(6);
+        QVERIFY(ellipse.hitTest(QPointF(23, 0), 1));
+        QVERIFY(!ellipse.hitTest(QPointF(25, 0), 1));
+        QCOMPARE(ellipse.boundingRect(), QRectF(-23, -13, 46, 26));
+        ellipse.setWidth(0);
+        QCOMPARE(ellipse.width(), 1);
     }
 
     void contourEditing()

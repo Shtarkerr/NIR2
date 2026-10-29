@@ -88,6 +88,7 @@ MainWindow::MainWindow(QWidget *parent)
     toolContext_.canvas = canvas_;
     toolContext_.document = document_;
     toolContext_.undoStack = undoStack_;
+    toolContext_.setBrushSize = [this](int size) { setBrushSize(size); };
 
     createTools();
     createActions();
@@ -206,7 +207,11 @@ void MainWindow::createActions()
     fillAction_->setCheckable(true);
     fillAction_->setShortcut(QKeySequence(tr("F")));
     fillAction_->setToolTip(tr("Сплошная заливка прямоугольников и эллипсов (F)"));
-    connect(fillAction_, &QAction::toggled, this, [this](bool on) { toolContext_.style.filled = on; });
+    connect(fillAction_, &QAction::toggled, this, [this](bool on) {
+        toolContext_.style.filled = on;
+        for (const auto &tool : tools_)
+            tool->styleChanged();
+    });
     toolsMenu->addAction(fillAction_);
     toolsMenu->addAction(tr("&Цвет..."), this, &MainWindow::chooseColor);
     toolsMenu->addSeparator();
@@ -260,7 +265,9 @@ void MainWindow::createToolBars()
     brushSpin_ = new QSpinBox(toolBar);
     brushSpin_->setRange(1, MaxBrushSize);
     brushSpin_->setSuffix(QStringLiteral(" px"));
-    brushSpin_->setToolTip(tr("Размер кисти для контура. Клавиши [ и ] меняют его на ходу."));
+    brushSpin_->setToolTip(tr("Толщина линии контура, рамки прямоугольника и эллипса, размер точки. "
+                              "Меняется клавишами [ и ] или протягиванием мыши вправо и влево "
+                              "с зажатой правой кнопкой."));
     connect(brushSpin_, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::setBrushSize);
     connect(brushSpin_, &QSpinBox::editingFinished, canvas_, [this] { canvas_->setFocus(); });
     toolBar->addWidget(brushSpin_);
@@ -654,12 +661,14 @@ void MainWindow::showShortcuts()
         "<table cellspacing='4'>"
         "<tr><td><b>V</b></td><td>выбор и перемещение объектов, стрелки двигают на 1 px, с Shift на 10 px</td></tr>"
         "<tr><td><b>P</b></td><td>отметка точки</td></tr>"
-        "<tr><td><b>R</b></td><td>прямоугольник, с Shift квадрат</td></tr>"
-        "<tr><td><b>E</b></td><td>эллипс, с Shift круг</td></tr>"
+        "<tr><td><b>R</b></td><td>прямоугольник, с Shift квадрат, Esc отменяет</td></tr>"
+        "<tr><td><b>E</b></td><td>эллипс, с Shift круг, Esc отменяет</td></tr>"
         "<tr><td><b>C</b></td><td>контур: обвести с зажатой кнопкой или ставить вершины щелчками; "
         "двойной щелчок или Enter завершают, Backspace убирает вершину, Esc отменяет</td></tr>"
-        "<tr><td><b>[ и ]</b></td><td>уменьшить и увеличить кисть контура</td></tr>"
-        "<tr><td><b>F</b></td><td>заливка прямоугольников и эллипсов</td></tr>"
+        "<tr><td><b>[ и ]</b></td><td>уменьшить и увеличить кисть: толщину контура и рамки фигур, размер точки</td></tr>"
+        "<tr><td><b>Правая кнопка + мышь</b></td><td>протянуть вправо или влево, чтобы увеличить "
+        "или уменьшить кисть, как в Photoshop</td></tr>"
+        "<tr><td><b>F</b></td><td>заливка прямоугольников и эллипсов, кисть у них тогда 5 px</td></tr>"
         "<tr><td><b>Ctrl+N</b></td><td>новый холст выбранного цвета</td></tr>"
         "<tr><td><b>Ctrl + щелчок</b></td><td>добавить объект к выделению или убрать из него</td></tr>"
         "<tr><td><b>Список объектов</b></td><td>протяните мышью по строкам, чтобы выделить несколько, "

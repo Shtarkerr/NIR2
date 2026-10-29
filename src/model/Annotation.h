@@ -60,6 +60,8 @@ protected:
     virtual void writeTxtGeometry(QTextStream &out) const = 0;
 
     QPen outlinePen() const;
+    // Линия толщиной width пикселей изображения при масштабе вида scale.
+    QPen strokePen(int width, qreal scale) const;
 
 private:
     int id_ = 0;

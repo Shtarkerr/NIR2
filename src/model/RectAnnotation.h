@@ -15,7 +15,7 @@ public:
     Type type() const override { return Type::Rect; }
     QString typeName() const override { return QStringLiteral("rect"); }
     QString describe() const override;
-    QRectF boundingRect() const override { return rect_; }
+    QRectF boundingRect() const override;
     bool hitTest(const QPointF &pos, qreal tolerance) const override;
     void translate(const QPointF &delta) override { rect_.translate(delta); }
     void paint(QPainter &painter, qreal scale) const override;

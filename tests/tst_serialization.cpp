@@ -21,11 +21,13 @@ void fillDocument(AnnotationDocument &doc, const QString &imagePath)
     auto point = std::make_unique<PointAnnotation>(QPoint(120, 45));
     point->setLabel("eye");
     point->setColor(QColor("#00ff00"));
+    point->setSize(5);
     doc.add(std::move(point));
 
     auto rect = std::make_unique<RectAnnotation>(QRectF(10, 20, 200, 150));
     rect->setLabel("cat \"Tom\"");
     rect->setColor(QColor("#ff0000"));
+    rect->setWidth(3);
     doc.add(std::move(rect));
 
     auto ellipse = std::make_unique<EllipseAnnotation>(QPointF(400, 300), 50, 30.5);
@@ -130,6 +132,20 @@ private slots:
         QCOMPARE(static_cast<ContourAnnotation *>(contour.get())->width(), 1);
     }
 
+    void shapeWithoutWidthDefaultsToOne()
+    {
+        const QJsonObject json{{"type", "rect"}, {"color", "#ff0000"},
+                               {"x", 1}, {"y", 2}, {"w", 3}, {"h", 4}};
+        std::unique_ptr<Annotation> rect = AnnotationFactory::fromJson(json);
+        QVERIFY(rect);
+        QCOMPARE(static_cast<RectAnnotation *>(rect.get())->width(), 1);
+
+        std::unique_ptr<Annotation> point = AnnotationFactory::fromJson(
+            QJsonObject{{"type", "point"}, {"color", "#ff0000"}, {"x", 1}, {"y", 2}});
+        QVERIFY(point);
+        QCOMPARE(static_cast<PointAnnotation *>(point.get())->size(), 1);
+    }
+
     void loadErrorKeepsDocument()
     {
         QTemporaryDir dir;
@@ -156,10 +172,10 @@ private slots:
         QVERIFY(text.contains(QStringLiteral("# Image Annotator: экспорт разметки\n")));
         QVERIFY(text.contains("# image: photo.png"));
         QVERIFY(text.contains("# size: 640x480"));
-        QVERIFY(text.contains("POINT id=1 label=\"eye\" color=#00ff00 x=120 y=45"));
-        QVERIFY(text.contains("RECT id=2 label=\"cat \\\"Tom\\\"\" color=#ff0000 filled=0 "
+        QVERIFY(text.contains("POINT id=1 label=\"eye\" color=#00ff00 x=120 y=45 size=5"));
+        QVERIFY(text.contains("RECT id=2 label=\"cat \\\"Tom\\\"\" color=#ff0000 filled=0 width=3 "
                               "x1=10 y1=20 x2=210 y2=20 x3=210 y3=170 x4=10 y4=170"));
-        QVERIFY(text.contains("ELLIPSE id=3 label=\"ball\" color=#800000ff filled=1 cx=400 cy=300 rx=50 ry=30.5"));
+        QVERIFY(text.contains("ELLIPSE id=3 label=\"ball\" color=#800000ff filled=1 width=1 cx=400 cy=300 rx=50 ry=30.5"));
 
         // Количество пикселей в заголовке контура совпадает со строкой P.
         const auto *contour = static_cast<const ContourAnnotation *>(doc.annotations().back().get());

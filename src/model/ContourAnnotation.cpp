@@ -52,7 +52,7 @@ QVector<QPoint> ContourAnnotation::rasterize() const
 
 QString ContourAnnotation::describe() const
 {
-    return QStringLiteral("%1 вершин, %2, кисть %3 px").arg(vertices_.size())
+    return QStringLiteral("вершин: %1, %2, кисть %3 px").arg(vertices_.size())
         .arg(closed_ ? QStringLiteral("замкнутый") : QStringLiteral("открытый"))
         .arg(width_);
 }
@@ -105,13 +105,8 @@ void ContourAnnotation::paint(QPainter &painter, qreal scale) const
         return;
     }
 
-    // Тонкую линию рисуем постоянной экранной толщины, иначе при уменьшении она пропадает.
-    QPen pen = outlinePen();
+    QPen pen = strokePen(width_, scale);
     pen.setCapStyle(Qt::RoundCap);
-    if (width_ * scale > 2) {
-        pen.setCosmetic(false);
-        pen.setWidthF(width_);
-    }
     painter.setPen(pen);
     painter.setBrush(Qt::NoBrush);
 

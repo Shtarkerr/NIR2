@@ -10,7 +10,8 @@ class Tool;
 
 // Область просмотра изображения. Координаты сцены совпадают с пикселями картинки.
 // Колесом меняется масштаб, средней кнопкой или пробелом с левой кнопкой картинка
-// прокручивается. Остальные события мыши и клавиатуры получает текущий инструмент.
+// прокручивается. Если инструмент рисует кистью, протягивание с правой кнопкой меняет
+// её размер. Остальные события мыши и клавиатуры получает текущий инструмент.
 class ImageCanvas : public QGraphicsView
 {
     Q_OBJECT
@@ -66,6 +67,8 @@ private:
     void applyZoom(qreal factor);
     void viewScaleChanged();
     void updateCursor();
+    // Показывает кисть инструмента под мышью или прячет её, если мышь не над холстом.
+    void updateToolHover();
 
     QGraphicsScene *scene_;
     QGraphicsPixmapItem *pixmapItem_;
@@ -79,5 +82,6 @@ private:
     bool buttonsHeld_ = false;
     bool spaceHeld_ = false;
     bool panning_ = false;
+    bool resizingBrush_ = false;
     QPoint panLast_;
 };

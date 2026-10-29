@@ -8,17 +8,18 @@
 
 QString PointAnnotation::describe() const
 {
-    return QStringLiteral("(%1, %2)").arg(pos_.x()).arg(pos_.y());
+    return QStringLiteral("(%1, %2), размер %3 px").arg(pos_.x()).arg(pos_.y()).arg(size_);
 }
 
 QRectF PointAnnotation::boundingRect() const
 {
-    return QRectF(pos_, QSizeF(1, 1));
+    const qreal r = size_ / 2.0;
+    return QRectF(center() - QPointF(r, r), QSizeF(size_, size_));
 }
 
 bool PointAnnotation::hitTest(const QPointF &pos, qreal tolerance) const
 {
-    return QLineF(center(), pos).length() <= tolerance + 0.5;
+    return QLineF(center(), pos).length() <= tolerance + size_ / 2.0;
 }
 
 void PointAnnotation::translate(const QPointF &delta)
@@ -28,7 +29,8 @@ void PointAnnotation::translate(const QPointF &delta)
 
 void PointAnnotation::paint(QPainter &painter, qreal scale) const
 {
-    const qreal radius = std::max(4.0 / scale, 0.5);
+    // Маленькая точка рисуется не меньше нескольких экранных пикселей, иначе её не видно.
+    const qreal radius = std::max(4.0 / scale, size_ / 2.0);
     QPen pen(Qt::black, 1);
     pen.setCosmetic(true);
     painter.setPen(pen);
@@ -45,6 +47,7 @@ void PointAnnotation::writeJsonGeometry(QJsonObject &obj) const
 {
     obj["x"] = pos_.x();
     obj["y"] = pos_.y();
+    obj["size"] = size_;
 }
 
 bool PointAnnotation::readJsonGeometry(const QJsonObject &obj)
@@ -52,10 +55,11 @@ bool PointAnnotation::readJsonGeometry(const QJsonObject &obj)
     if (!obj.contains("x") || !obj.contains("y"))
         return false;
     pos_ = QPoint(obj.value("x").toInt(), obj.value("y").toInt());
+    setSize(obj.value("size").toInt(1));
     return true;
 }
 
 void PointAnnotation::writeTxtGeometry(QTextStream &out) const
 {
-    out << " x=" << pos_.x() << " y=" << pos_.y();
+    out << " x=" << pos_.x() << " y=" << pos_.y() << " size=" << size_;
 }

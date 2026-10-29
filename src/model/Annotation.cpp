@@ -33,7 +33,8 @@ bool Annotation::fromJson(const QJsonObject &obj)
 void Annotation::writeTxt(QTextStream &out) const
 {
     QString escaped = label_;
-    escaped.replace('\\', QStringLiteral("\\\\")).replace('"', QStringLiteral("\\\""));
+    escaped.replace('\\', QStringLiteral("\\\\")).replace('"', QStringLiteral("\\\""))
+           .replace('\n', QStringLiteral("\\n")).replace('\r', QStringLiteral("\\r"));
 
     out << typeName().toUpper()
         << " id=" << id_
@@ -58,5 +59,16 @@ QPen Annotation::outlinePen() const
     QPen pen(color_, 2);
     pen.setCosmetic(true);
     pen.setJoinStyle(Qt::RoundJoin);
+    return pen;
+}
+
+QPen Annotation::strokePen(int width, qreal scale) const
+{
+    // Тонкую линию рисуем постоянной экранной толщины, иначе при уменьшении она пропадает.
+    QPen pen = outlinePen();
+    if (width * scale > 2) {
+        pen.setCosmetic(false);
+        pen.setWidthF(width);
+    }
     return pen;
 }

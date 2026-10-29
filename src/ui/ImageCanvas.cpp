@@ -5,6 +5,7 @@
 #include "ui/AnnotationGraphicsItem.h"
 #include "ui/BrushCursorItem.h"
 
+#include <QCursor>
 #include <QGraphicsPixmapItem>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -93,7 +94,9 @@ void ImageCanvas::setTool(Tool *tool)
     if (tool_)
         tool_->deactivate();
     tool_ = tool;
+    resizingBrush_ = false;
     updateCursor();
+    updateToolHover();
 }
 
 qreal ImageCanvas::viewScale() const
@@ -238,14 +241,39 @@ void ImageCanvas::updateCursor()
         viewport()->setCursor(Qt::ArrowCursor);
 }
 
+void ImageCanvas::updateToolHover()
+{
+    if (!tool_ || !hasImage())
+        return;
+    const QPoint pos = viewport()->mapFromGlobal(QCursor::pos());
+    // С пробелом и во время прокрутки вместо кисти курсор-рука.
+    if (viewport()->rect().contains(pos) && !spaceHeld_ && !panning_)
+        tool_->hover(mapToScene(pos));
+    else
+        tool_->leave();
+}
+
 void ImageCanvas::mousePressEvent(QMouseEvent *event)
 {
     setFocus();
     buttonsHeld_ = true;
+    // Пока меняется размер кисти, другие кнопки ничего не делают.
+    if (resizingBrush_) {
+        event->accept();
+        return;
+    }
+    if (event->button() == Qt::RightButton && event->buttons() == Qt::RightButton
+        && tool_ && hasImage() && tool_->canResizeBrush()) {
+        resizingBrush_ = true;
+        tool_->beginBrushResize(mapToScene(event->pos()));
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::MiddleButton || (spaceHeld_ && event->button() == Qt::LeftButton)) {
         panning_ = true;
         panLast_ = event->pos();
         updateCursor();
+        updateToolHover();
         event->accept();
         return;
     }
@@ -278,6 +306,15 @@ void ImageCanvas::mouseMoveEvent(QMouseEvent *event)
         event->accept();
         return;
     }
+    if (resizingBrush_) {
+        tool_->resizeBrush(scenePos);
+        event->accept();
+        return;
+    }
+    if (spaceHeld_ && !held) {
+        event->accept();
+        return;
+    }
     if (tool_ && hasImage())
         tool_->mouseMove(scenePos, event);
     event->accept();
@@ -287,9 +324,19 @@ void ImageCanvas::mouseReleaseEvent(QMouseEvent *event)
 {
     buttonsHeld_ = event->buttons() != Qt::NoButton;
     pointerInImage_ = hasImage() && imageRect().contains(mapToScene(event->pos()));
+    if (resizingBrush_) {
+        if (event->button() == Qt::RightButton) {
+            resizingBrush_ = false;
+            tool_->endBrushResize(mapToScene(event->pos()));
+            updateCursor();
+        }
+        event->accept();
+        return;
+    }
     if (panning_ && (event->button() == Qt::MiddleButton || event->button() == Qt::LeftButton)) {
         panning_ = false;
         updateCursor();
+        updateToolHover();
         event->accept();
         return;
     }
@@ -301,6 +348,12 @@ void ImageCanvas::mouseReleaseEvent(QMouseEvent *event)
 
 void ImageCanvas::mouseDoubleClickEvent(QMouseEvent *event)
 {
+    // Второе быстрое нажатие правой кнопки приходит как двойной щелчок,
+    // но размер кисти должен меняться и после него.
+    if (event->button() == Qt::RightButton) {
+        mousePressEvent(event);
+        return;
+    }
     if (tool_ && hasImage() && !panning_)
         tool_->mouseDoubleClick(mapToScene(event->pos()), event);
     event->accept();
@@ -323,6 +376,7 @@ void ImageCanvas::keyPressEvent(QKeyEvent *event)
         if (!event->isAutoRepeat()) {
             spaceHeld_ = true;
             updateCursor();
+            updateToolHover();
         }
         event->accept();
         return;
@@ -339,6 +393,7 @@ void ImageCanvas::keyReleaseEvent(QKeyEvent *event)
     if (event->key() == Qt::Key_Space && !event->isAutoRepeat()) {
         spaceHeld_ = false;
         updateCursor();
+        updateToolHover();
         event->accept();
         return;
     }
