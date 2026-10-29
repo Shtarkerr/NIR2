@@ -19,14 +19,14 @@
 ## Сборка и запуск
 
 ```bash
-sudo apt install qtbase5-dev qtbase5-dev-tools cmake ninja-build g++
-cmake -S . -B build -G Ninja
+sudo apt install qtbase5-dev qtbase5-dev-tools qttranslations5-l10n cmake g++
+cmake -S . -B build
 cmake --build build
 ctest --test-dir build
 ./build/image_annotator samples/shapes.json
 ```
 
-Можно открыть `CMakeLists.txt` в Qt Creator.
+Можно открыть `CMakeLists.txt` в Qt Creator. Пакет `qttranslations5-l10n` нужен, чтобы стандартные кнопки и диалоги Qt были на русском, без него программа тоже работает.
 
 ## Управление
 

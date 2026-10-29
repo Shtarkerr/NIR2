@@ -1,9 +1,11 @@
 #include "tools/ContourTool.h"
 
 #include "model/ContourAnnotation.h"
+#include "ui/ImageCanvas.h"
 
-#include <QCoreApplication>
+#include <QApplication>
 #include <QKeyEvent>
+#include <QLineF>
 #include <QMouseEvent>
 
 QString ContourTool::name() const
@@ -26,6 +28,7 @@ void ContourTool::mousePress(const QPointF &pos, QMouseEvent *event)
         startDraft(std::move(created));
         dragging_ = true;
         dragged_ = false;
+        pressPos_ = pos;
         return;
     }
 
@@ -38,6 +41,12 @@ void ContourTool::mouseMove(const QPointF &pos, QMouseEvent *event)
 {
     moveBrush(pos, event->buttons());
     if (!contour() || !dragging_ || !(event->buttons() & Qt::LeftButton))
+        return;
+    // Если рука дрогнула при щелчке, это ещё не рисование от руки. Порог в экранных
+    // пикселях, иначе при уменьшенном масштабе сдвиг на один пиксель экрана
+    // попадает в другой пиксель картинки и контур сразу завершается.
+    const qreal moved = QLineF(pressPos_, pos).length() * context_.canvas->viewScale();
+    if (!dragged_ && moved < QApplication::startDragDistance())
         return;
     if (contour()->addVertex(pixelAt(pos))) {
         dragged_ = true;

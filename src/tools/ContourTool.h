@@ -29,4 +29,5 @@ private:
 
     bool dragging_ = false;
     bool dragged_ = false;
+    QPointF pressPos_;
 };
