@@ -13,20 +13,17 @@ QString TxtExporter::toText(const AnnotationDocument &doc)
 
     // В Qt 5 operator<<(const char *) считает строку Latin-1, поэтому кириллицу
     // передаём через QStringLiteral.
-    out << QStringLiteral("# Image Annotator: экспорт разметки\n")
-        << (doc.isBlankCanvas() ? QStringLiteral("# canvas: ") + Annotation::colorToString(doc.canvasColor())
-                                : QStringLiteral("# image: ") + QFileInfo(doc.imagePath()).fileName())
+    out << QStringLiteral("Разметка изображения (Image Annotator)\n")
+        << (doc.isBlankCanvas()
+                ? QStringLiteral("Изображение: пустой холст, цвет %1\n").arg(doc.canvasColor().name())
+                : QStringLiteral("Изображение: %1\n").arg(QFileInfo(doc.imagePath()).fileName()))
+        << QStringLiteral("Размер: %1 x %2 пикселей\n").arg(doc.imageSize().width()).arg(doc.imageSize().height())
+        << QStringLiteral("Объектов: %1\n").arg(doc.count())
         << '\n'
-        << "# size: " << doc.imageSize().width() << 'x' << doc.imageSize().height() << '\n'
-        << "# objects: " << doc.count() << '\n'
-        << "#\n"
-        << QStringLiteral("# Координаты в пикселях изображения, начало в левом верхнем углу.\n")
-        << QStringLiteral("# POINT   x y size: отмеченный пиксель и диаметр точки\n")
-        << QStringLiteral("# RECT    filled width x1 y1 .. x4 y4: заливка, толщина рамки,\n"
-                          "#         вершины по часовой стрелке от левой верхней\n")
-        << QStringLiteral("# ELLIPSE filled width cx cy rx ry: заливка, толщина рамки, центр и полуоси\n")
-        << QStringLiteral("# CONTOUR closed width vertices pixels: width - толщина кисти,\n"
-                          "#         строка V: вершины, строка P: пиксели средней линии контура по порядку\n")
+        << QStringLiteral("Координаты даны в пикселях изображения: x растёт вправо, y вниз,\n"
+                          "точка (0, 0) в левом верхнем углу. Рамка фигуры проходит посередине\n"
+                          "её границы. У контура перечислены вершины и все пиксели его средней\n"
+                          "линии по порядку обхода.\n")
         << '\n';
 
     for (const auto &annotation : doc.annotations())

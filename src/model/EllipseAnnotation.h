@@ -18,6 +18,7 @@ public:
 
     Type type() const override { return Type::Ellipse; }
     QString typeName() const override { return QStringLiteral("ellipse"); }
+    QString displayName() const override { return QStringLiteral("Эллипс"); }
     QString describe() const override;
     QRectF boundingRect() const override;
     bool hitTest(const QPointF &pos, qreal tolerance) const override;

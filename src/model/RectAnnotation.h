@@ -14,6 +14,7 @@ public:
 
     Type type() const override { return Type::Rect; }
     QString typeName() const override { return QStringLiteral("rect"); }
+    QString displayName() const override { return QStringLiteral("Прямоугольник"); }
     QString describe() const override;
     QRectF boundingRect() const override;
     bool hitTest(const QPointF &pos, qreal tolerance) const override;

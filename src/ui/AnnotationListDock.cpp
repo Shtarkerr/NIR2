@@ -14,17 +14,6 @@ namespace {
 
 enum Column { IdColumn, TypeColumn, LabelColumn, GeometryColumn, ColumnCount };
 
-QString displayTypeName(Annotation::Type type)
-{
-    switch (type) {
-    case Annotation::Type::Point:   return AnnotationListDock::tr("Точка");
-    case Annotation::Type::Rect:    return AnnotationListDock::tr("Прямоугольник");
-    case Annotation::Type::Ellipse: return AnnotationListDock::tr("Эллипс");
-    case Annotation::Type::Contour: return AnnotationListDock::tr("Контур");
-    }
-    return QString();
-}
-
 } // namespace
 
 AnnotationListDock::AnnotationListDock(AnnotationDocument *document, QUndoStack *undoStack,
@@ -161,7 +150,7 @@ void AnnotationListDock::fillRow(QTreeWidgetItem *item, const Annotation &annota
     item->setData(IdColumn, Qt::UserRole, annotation.id());
     item->setText(IdColumn, QString::number(annotation.id()));
     item->setIcon(TypeColumn, Icons::colorSwatch(annotation.color(), 12));
-    item->setText(TypeColumn, displayTypeName(annotation.type()));
+    item->setText(TypeColumn, annotation.displayName());
     item->setText(LabelColumn, annotation.label());
     item->setText(GeometryColumn, annotation.describe());
     item->setToolTip(GeometryColumn, annotation.describe());

@@ -33,6 +33,8 @@ public:
     virtual Type type() const = 0;
     // Имя типа в файлах: "point", "rect", "ellipse", "contour".
     virtual QString typeName() const = 0;
+    // Название типа для человека: "Точка", "Прямоугольник" и т. д.
+    virtual QString displayName() const = 0;
     // Краткое описание геометрии для списка объектов.
     virtual QString describe() const = 0;
     virtual QRectF boundingRect() const = 0;
@@ -49,6 +51,8 @@ public:
 
     static QString colorToString(const QColor &color);
     static QString formatNumber(qreal value);
+    // Точка в виде "(x, y)".
+    static QString formatPoint(const QPointF &point);
 
 protected:
     Annotation() = default;

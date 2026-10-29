@@ -18,6 +18,12 @@ public:
     void setWidth(int width) { width_ = width < 1 ? 1 : width; }
 
 protected:
+    // Строка "Вид" в текстовом файле.
+    QString styleText() const
+    {
+        return filled_ ? QStringLiteral("сплошная заливка")
+                       : QStringLiteral("рамка толщиной %1 px").arg(width_);
+    }
     QBrush fillBrush() const { return filled_ ? QBrush(color()) : QBrush(Qt::NoBrush); }
     QPen shapePen(qreal scale) const { return filled_ ? outlinePen() : strokePen(width_, scale); }
     // На сколько рамка выходит за границу фигуры.

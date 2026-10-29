@@ -84,10 +84,8 @@ bool EllipseAnnotation::readJsonGeometry(const QJsonObject &obj)
 
 void EllipseAnnotation::writeTxtGeometry(QTextStream &out) const
 {
-    out << " filled=" << (isFilled() ? 1 : 0)
-        << " width=" << width()
-        << " cx=" << formatNumber(center_.x())
-        << " cy=" << formatNumber(center_.y())
-        << " rx=" << formatNumber(rx_)
-        << " ry=" << formatNumber(ry_);
+    out << QStringLiteral("  Вид: %1\n").arg(styleText())
+        << QStringLiteral("  Центр: %1\n").arg(formatPoint(center_))
+        << QStringLiteral("  Полуоси: по горизонтали %1, по вертикали %2\n")
+               .arg(formatNumber(rx_), formatNumber(ry_));
 }

@@ -22,11 +22,16 @@ qreal distanceToSegment(const QPointF &p, const QPointF &a, const QPointF &b)
     return QLineF(p, a + t * ab).length();
 }
 
-void writePoints(QTextStream &out, const char *prefix, const QVector<QPoint> &points)
+constexpr int PointsPerLine = 8;
+
+// Список точек с отступом, по несколько штук в строке.
+void writePoints(QTextStream &out, const QVector<QPoint> &points)
 {
-    out << "\n  " << prefix;
-    for (int i = 0; i < points.size(); ++i)
-        out << (i == 0 ? " " : "; ") << points[i].x() << ' ' << points[i].y();
+    for (int i = 0; i < points.size(); ++i) {
+        out << (i % PointsPerLine == 0 ? "    " : "  ") << Annotation::formatPoint(points[i]);
+        if (i % PointsPerLine == PointsPerLine - 1 || i == points.size() - 1)
+            out << '\n';
+    }
 }
 
 } // namespace
@@ -161,10 +166,11 @@ bool ContourAnnotation::readJsonGeometry(const QJsonObject &obj)
 void ContourAnnotation::writeTxtGeometry(QTextStream &out) const
 {
     const QVector<QPoint> pixels = rasterize();
-    out << " closed=" << (closed_ ? 1 : 0)
-        << " width=" << width_
-        << " vertices=" << vertices_.size()
-        << " pixels=" << pixels.size();
-    writePoints(out, "V", vertices_);
-    writePoints(out, "P", pixels);
+    out << QStringLiteral("  Вид: %1, толщина кисти %2 px\n")
+               .arg(closed_ ? QStringLiteral("замкнутый контур") : QStringLiteral("незамкнутая линия"))
+               .arg(width_)
+        << QStringLiteral("  Вершин: %1\n").arg(vertices_.size());
+    writePoints(out, vertices_);
+    out << QStringLiteral("  Пикселей средней линии по порядку: %1\n").arg(pixels.size());
+    writePoints(out, pixels);
 }

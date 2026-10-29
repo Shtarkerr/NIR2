@@ -61,5 +61,6 @@ bool PointAnnotation::readJsonGeometry(const QJsonObject &obj)
 
 void PointAnnotation::writeTxtGeometry(QTextStream &out) const
 {
-    out << " x=" << pos_.x() << " y=" << pos_.y() << " size=" << size_;
+    out << QStringLiteral("  Пиксель: %1\n").arg(formatPoint(pos_))
+        << QStringLiteral("  Размер: %1 px\n").arg(size_);
 }

@@ -31,6 +31,7 @@ public:
 
     Type type() const override { return Type::Contour; }
     QString typeName() const override { return QStringLiteral("contour"); }
+    QString displayName() const override { return QStringLiteral("Контур"); }
     QString describe() const override;
     QRectF boundingRect() const override;
     bool hitTest(const QPointF &pos, qreal tolerance) const override;

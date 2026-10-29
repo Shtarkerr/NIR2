@@ -1,6 +1,7 @@
 #include "model/RectAnnotation.h"
 
 #include <QPainter>
+#include <QStringList>
 #include <QTextStream>
 
 QString RectAnnotation::describe() const
@@ -72,12 +73,11 @@ bool RectAnnotation::readJsonGeometry(const QJsonObject &obj)
 
 void RectAnnotation::writeTxtGeometry(QTextStream &out) const
 {
-    // Вершины по часовой стрелке, начиная с левой верхней.
-    const QPointF corners[] = {rect_.topLeft(), rect_.topRight(),
-                               rect_.bottomRight(), rect_.bottomLeft()};
-    out << " filled=" << (isFilled() ? 1 : 0) << " width=" << width();
-    for (int i = 0; i < 4; ++i) {
-        out << " x" << i + 1 << '=' << formatNumber(corners[i].x())
-            << " y" << i + 1 << '=' << formatNumber(corners[i].y());
-    }
+    const QStringList corners{formatPoint(rect_.topLeft()), formatPoint(rect_.topRight()),
+                              formatPoint(rect_.bottomRight()), formatPoint(rect_.bottomLeft())};
+    out << QStringLiteral("  Вид: %1\n").arg(styleText())
+        << QStringLiteral("  Левый верхний угол %1, ширина %2, высота %3\n")
+               .arg(formatPoint(rect_.topLeft()), formatNumber(rect_.width()), formatNumber(rect_.height()))
+        << QStringLiteral("  Вершины по часовой стрелке от левой верхней:\n")
+        << "    " << corners.join(QStringLiteral("  ")) << '\n';
 }

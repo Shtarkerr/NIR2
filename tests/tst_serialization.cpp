@@ -120,7 +120,7 @@ private slots:
         QCOMPARE(loaded.imageSize(), QSize(300, 200));
         QCOMPARE(loaded.count(), 1);
 
-        QVERIFY(TxtExporter::toText(doc).contains("# canvas: #336699\n"));
+        QVERIFY(TxtExporter::toText(doc).contains(QStringLiteral("Изображение: пустой холст, цвет #336699\n")));
     }
 
     void contourWithoutWidthDefaultsToOne()
@@ -169,24 +169,66 @@ private slots:
         fillDocument(doc, "/tmp/photo.png");
         const QString text = TxtExporter::toText(doc);
 
-        QVERIFY(text.contains(QStringLiteral("# Image Annotator: экспорт разметки\n")));
-        QVERIFY(text.contains("# image: photo.png"));
-        QVERIFY(text.contains("# size: 640x480"));
-        QVERIFY(text.contains("POINT id=1 label=\"eye\" color=#00ff00 x=120 y=45 size=5"));
-        QVERIFY(text.contains("RECT id=2 label=\"cat \\\"Tom\\\"\" color=#ff0000 filled=0 width=3 "
-                              "x1=10 y1=20 x2=210 y2=20 x3=210 y3=170 x4=10 y4=170"));
-        QVERIFY(text.contains("ELLIPSE id=3 label=\"ball\" color=#800000ff filled=1 width=1 cx=400 cy=300 rx=50 ry=30.5"));
+        QVERIFY(text.startsWith(QStringLiteral("Разметка изображения (Image Annotator)\n"
+                                               "Изображение: photo.png\n"
+                                               "Размер: 640 x 480 пикселей\n"
+                                               "Объектов: 4\n")));
+        QVERIFY(text.contains(QStringLiteral("Объект №1. Точка\n"
+                                             "  Метка: eye\n"
+                                             "  Цвет: #00ff00\n"
+                                             "  Пиксель: (120, 45)\n"
+                                             "  Размер: 5 px\n")));
+        QVERIFY(text.contains(QStringLiteral("Объект №2. Прямоугольник\n"
+                                             "  Метка: cat \"Tom\"\n"
+                                             "  Цвет: #ff0000\n"
+                                             "  Вид: рамка толщиной 3 px\n"
+                                             "  Левый верхний угол (10, 20), ширина 200, высота 150\n"
+                                             "  Вершины по часовой стрелке от левой верхней:\n"
+                                             "    (10, 20)  (210, 20)  (210, 170)  (10, 170)\n")));
+        QVERIFY(text.contains(QStringLiteral("Объект №3. Эллипс\n"
+                                             "  Метка: ball\n"
+                                             "  Цвет: #0000ff, непрозрачность 50%\n"
+                                             "  Вид: сплошная заливка\n"
+                                             "  Центр: (400, 300)\n"
+                                             "  Полуоси: по горизонтали 50, по вертикали 30.5\n")));
 
-        // Количество пикселей в заголовке контура совпадает со строкой P.
         const auto *contour = static_cast<const ContourAnnotation *>(doc.annotations().back().get());
-        const int pixelCount = contour->rasterize().size();
-        QVERIFY(text.contains(QStringLiteral("CONTOUR id=4 label=\"tree\" color=#ffaa00 closed=1 width=7 vertices=4 pixels=%1")
-                                  .arg(pixelCount)));
-        QVERIFY(text.contains("\n  V 100 100; 150 90; 160 140; 110 150\n"));
+        const QVector<QPoint> pixels = contour->rasterize();
+        QVERIFY(text.contains(QStringLiteral("Объект №4. Контур\n"
+                                             "  Метка: tree\n"
+                                             "  Цвет: #ffaa00\n"
+                                             "  Вид: замкнутый контур, толщина кисти 7 px\n"
+                                             "  Вершин: 4\n"
+                                             "    (100, 100)  (150, 90)  (160, 140)  (110, 150)\n"
+                                             "  Пикселей средней линии по порядку: %1\n").arg(pixels.size())));
 
-        const QRegularExpressionMatch match = QRegularExpression("\n  P ([^\n]*)\n").match(text);
-        QVERIFY(match.hasMatch());
-        QCOMPARE(match.captured(1).split("; ").size(), pixelCount);
+        // Все пиксели контура перечислены по порядку, по 8 в строке.
+        const QString list = text.mid(text.indexOf(QStringLiteral("по порядку:")));
+        const QRegularExpression pointRe(QStringLiteral("\\((-?\\d+), (-?\\d+)\\)"));
+        QVector<QPoint> listed;
+        for (auto it = pointRe.globalMatch(list); it.hasNext();) {
+            const QRegularExpressionMatch m = it.next();
+            listed.append(QPoint(m.captured(1).toInt(), m.captured(2).toInt()));
+        }
+        QCOMPARE(listed, pixels);
+        QStringList firstLine;
+        for (int i = 0; i < 8; ++i)
+            firstLine.append(QStringLiteral("(%1, %2)").arg(pixels[i].x()).arg(pixels[i].y()));
+        QVERIFY(text.contains(QStringLiteral("по порядку: %1\n    %2\n")
+                                  .arg(pixels.size()).arg(firstLine.join(QStringLiteral("  ")))));
+    }
+
+    void txtLabelOnOneLine()
+    {
+        AnnotationDocument doc;
+        auto point = std::make_unique<PointAnnotation>(QPoint(1, 2));
+        point->setLabel("first\nsecond");
+        doc.add(std::move(point));
+        auto empty = std::make_unique<PointAnnotation>(QPoint(3, 4));
+        doc.add(std::move(empty));
+        const QString text = TxtExporter::toText(doc);
+        QVERIFY(text.contains(QStringLiteral("  Метка: first second\n")));
+        QVERIFY(text.contains(QStringLiteral("  Метка: (без метки)\n")));
     }
 };
 

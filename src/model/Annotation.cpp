@@ -32,14 +32,16 @@ bool Annotation::fromJson(const QJsonObject &obj)
 
 void Annotation::writeTxt(QTextStream &out) const
 {
-    QString escaped = label_;
-    escaped.replace('\\', QStringLiteral("\\\\")).replace('"', QStringLiteral("\\\""))
-           .replace('\n', QStringLiteral("\\n")).replace('\r', QStringLiteral("\\r"));
+    // Перевод строки в метке разорвал бы описание объекта, поэтому он становится пробелом.
+    const QString label = label_.simplified();
+    QString color = color_.name(QColor::HexRgb);
+    if (color_.alpha() != 255)
+        color += QStringLiteral(", непрозрачность %1%").arg(qRound(color_.alphaF() * 100));
 
-    out << typeName().toUpper()
-        << " id=" << id_
-        << " label=\"" << escaped << '"'
-        << " color=" << colorToString(color_);
+    // В Qt 5 operator<<(const char *) считает строку Latin-1, поэтому кириллица через QStringLiteral.
+    out << QStringLiteral("Объект №%1. %2\n").arg(id_).arg(displayName())
+        << QStringLiteral("  Метка: %1\n").arg(label.isEmpty() ? QStringLiteral("(без метки)") : label)
+        << QStringLiteral("  Цвет: %1\n").arg(color);
     writeTxtGeometry(out);
     out << '\n';
 }
@@ -52,6 +54,11 @@ QString Annotation::colorToString(const QColor &color)
 QString Annotation::formatNumber(qreal value)
 {
     return QString::number(value, 'g', 10);
+}
+
+QString Annotation::formatPoint(const QPointF &point)
+{
+    return QStringLiteral("(%1, %2)").arg(formatNumber(point.x()), formatNumber(point.y()));
 }
 
 QPen Annotation::outlinePen() const

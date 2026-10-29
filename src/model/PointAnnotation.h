@@ -20,6 +20,7 @@ public:
 
     Type type() const override { return Type::Point; }
     QString typeName() const override { return QStringLiteral("point"); }
+    QString displayName() const override { return QStringLiteral("Точка"); }
     QString describe() const override;
     QRectF boundingRect() const override;
     bool hitTest(const QPointF &pos, qreal tolerance) const override;
